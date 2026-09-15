@@ -149,7 +149,7 @@
     state.editMode = false;
     state.draft = null;
     var btn = document.getElementById("editToggle");
-    if(btn) btn.textContent = "✏️ Editar treino";
+    if(btn) btn.textContent = " ✏️ Editar treino";
   }
 
   function renderEditBody(){
@@ -165,7 +165,7 @@
       html += '<div class="exercise edit-exercise" data-exidx="' + exIdx + '">';
       html += '<div class="ex-edit-row">';
       html += '<input type="text" class="edit-input ex-name-input" data-exidx="' + exIdx + '" value="' + escapeHtml(ex.name) + '" placeholder="Nome do exercício">';
-      html += '<button class="icon-btn remove-ex" data-exidx="' + exIdx + '" title="Remover exercício">🗑</button>';
+      html += '<button class="icon-btn remove-ex" data-exidx="' + exIdx + '" title="Remover exercício"> 🗑 </button>';
       html += "</div>";
 
       html += '<div class="edit-field"><label>Referência (opcional)</label>';
