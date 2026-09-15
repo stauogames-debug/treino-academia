@@ -23,7 +23,7 @@ Treino.DAYS = [
     { name: "Cadeira flexora", sets: ["15","10","8","6 a 8","6 a 8"] },
     { name: "Agachamento no smith", sets: ["10","8","6 a 8","6 a 8"] },
     { name: "Cadeira abdutora", sets: ["10","8","6 a 8","6 a 8"] },
-    { name: "Leg press", sets: ["8"] },
+    { name: "Leg press", sets: ["8","6 a 8"] },
     { name: "Panturrilha no leg", sets: ["10","8","6 a 8","6 a 8"] }
   ]},
   { slug: "qui", label: "Qui", full: "Quinta - Upper", exercises: [
