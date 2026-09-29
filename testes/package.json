@@ -1,0 +1,7 @@
+{
+  "name": "treino-testes",
+  "private": true,
+  "description": "Testes automatizados do Treino da Semana (rodam em Node + jsdom)",
+  "scripts": { "test": "node rodar.js" },
+  "devDependencies": { "jsdom": "^30" }
+}
