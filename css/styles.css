@@ -1,0 +1,727 @@
+/* =====================================================================
+   Treino da Semana — estilos
+   Todas as cores vêm dos tokens abaixo (nada de cor fixa nas regras).
+   :root                        = tema ESCURO (padrão)
+   :root[data-theme="light"]    = tema CLARO
+   Os dois blocos precisam ter os MESMOS tokens (tests/4-visual.test.js
+   confere isso e o contraste WCAG dos pares texto/fundo).
+   ===================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* estrutura */
+  --page-bg: #070C12;
+  --app-bg: #0B1219;
+  --app-border: #1B2836;
+  --surface: #111B26;
+  --surface-2: #172432;
+  --surface-3: #1E2E3F;
+  --border: #223244;
+  --border-strong: #34495F;
+
+  /* texto */
+  --text: #E8EEF4;
+  --text-muted: #9BADBF;
+  --text-faint: #8397AA;
+
+  /* destaque (verde) */
+  --accent: #4ADE80;
+  --accent-bg: #22C55E;
+  --on-accent: #052E16;
+  --accent-soft: #10291D;
+  --accent-border: #1F6B42;
+
+  /* cabeçalho e abas */
+  --hdr-bg: #0E1823;
+  --hdr-text: #FFFFFF;
+  --hdr-sub: #93A8BC;
+  --tab-bg: #152232;
+  --tab-text: #8EA3B8;
+  --tab-active-bg: #0B1219;
+  --tab-active-text: #4ADE80;
+  --dirty: #E0A800;
+
+  /* barra de data e cabeçalho do exercício */
+  --bar-bg: #101A25;
+  --bar-border: #1D2C3B;
+  --bar-label: #9BADBF;
+  --head-bg: #172432;
+  --head-text: #E8EEF4;
+  --head-sub: #8EA3B8;
+  --goal: #4ADE80;
+  --goal-note: #8EA3B8;
+
+  /* campo de CARGA (âmbar) x campo de REPS (azul): matizes bem diferentes */
+  --load-bg: #2B2410;
+  --load-border: #8F7220;
+  --load-text: #FFE9A8;
+  --load-placeholder: #A99555;
+  --load-unit: #D0B056;
+  --reps-bg: #0F2334;
+  --reps-border: #2E5A7E;
+  --reps-text: #D6EAFA;
+  --reps-placeholder: #7398B5;
+
+  /* campos de texto genéricos */
+  --input-bg: #0F1923;
+  --input-border: #2A3D50;
+  --input-text: #E8EEF4;
+  --input-placeholder: #7A8FA3;
+
+  /* botões de ícone e avisos */
+  --danger-bg: #2B1519;
+  --danger-border: #5C2B33;
+  --danger-text: #F28B94;
+  --info-bg: #12283A;
+  --info-border: #25506F;
+  --info-text: #86C1F0;
+  --warn-text: #E9B949;
+  --warn-border: #6B5316;
+
+  --shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --page-bg: #E7ECF1;
+  --app-bg: #F4F6F8;
+  --app-border: #D8E0E8;
+  --surface: #FFFFFF;
+  --surface-2: #F0F3F6;
+  --surface-3: #E3E9EF;
+  --border: #DCE4EC;
+  --border-strong: #C7D2DB;
+
+  --text: #16222E;
+  --text-muted: #506173;
+  --text-faint: #5F6F80;
+
+  --accent: #0F6E56;
+  --accent-bg: #0F6E56;
+  --on-accent: #FFFFFF;
+  --accent-soft: #E6F5F0;
+  --accent-border: #9FD3C3;
+
+  --hdr-bg: #12314F;
+  --hdr-text: #FFFFFF;
+  --hdr-sub: #A9C1D6;
+  --tab-bg: #0E2740;
+  --tab-text: #A9C1D6;
+  --tab-active-bg: #F4F6F8;
+  --tab-active-text: #12314F;
+  --dirty: #E0A800;
+
+  --bar-bg: #FFF6DE;
+  --bar-border: #E9D9A6;
+  --bar-label: #7A5E00;
+  --head-bg: #EAF2FA;
+  --head-text: #0C447C;
+  --head-sub: #46647E;
+  --goal: #0F6E56;
+  --goal-note: #46647E;
+
+  --load-bg: #FFF6DE;
+  --load-border: #D9BC5A;
+  --load-text: #16222E;
+  --load-placeholder: #86763A;
+  --load-unit: #7A6520;
+  --reps-bg: #E8F1FA;
+  --reps-border: #A9C4DE;
+  --reps-text: #16222E;
+  --reps-placeholder: #56758F;
+
+  --input-bg: #FFFFFF;
+  --input-border: #C7D2DB;
+  --input-text: #16222E;
+  --input-placeholder: #66768A;
+
+  --danger-bg: #FDEEEE;
+  --danger-border: #E3C2C2;
+  --danger-text: #B23B3B;
+  --info-bg: #EAF2FA;
+  --info-border: #B7CBE0;
+  --info-text: #0C447C;
+  --warn-text: #7A5E00;
+  --warn-border: #C7D2DB;
+
+  --shadow: 0 6px 18px rgba(18, 49, 79, 0.28);
+}
+
+/* ---------- base ---------- */
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html { background: var(--page-bg); }
+
+body {
+  margin: 0;
+  padding: 16px 10px;
+  background: var(--page-bg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+}
+
+#app {
+  max-width: 480px;
+  margin: 0 auto;
+  color: var(--text);
+  background: var(--app-bg);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+}
+
+button { font-family: inherit; }
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+.drag-handle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button:active { transform: scale(0.98); }
+
+/* ícones SVG */
+.ic { width: 1.15em; height: 1.15em; flex: 0 0 auto; }
+
+/* ---------- cabeçalho e abas ---------- */
+
+.hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--hdr-bg);
+  color: var(--hdr-text);
+  padding: 16px 18px 14px;
+}
+
+.hdr-text { min-width: 0; }
+.hdr h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0.2px; }
+.hdr p { margin: 3px 0 0; font-size: 12.5px; color: var(--hdr-sub); }
+
+.themebtn {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-strong);
+  background: var(--tab-bg);
+  color: var(--hdr-text);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.themebtn .ic { width: 20px; height: 20px; }
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  padding: 10px 10px 0;
+  background: var(--hdr-bg);
+  overflow-x: auto;
+}
+
+.tab {
+  flex: 0 0 auto;
+  padding: 9px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tab-text);
+  background: var(--tab-bg);
+  border: none;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+}
+
+.tab.active { background: var(--tab-active-bg); color: var(--tab-active-text); }
+
+/* Aba com alteração ainda não salva (editor de todos os dias) */
+.tab.dirty::after { content: " ●"; color: var(--dirty); }
+
+/* ---------- barra de data ---------- */
+
+.datebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--bar-bg);
+  border-bottom: 1px solid var(--bar-border);
+}
+
+.datebar label { font-size: 12.5px; font-weight: 600; color: var(--bar-label); }
+
+.datebar-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.datebar input[type=date] {
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--input-text);
+  font-family: inherit;
+}
+
+.todaybtn {
+  border: 1px solid var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 9px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.body { padding: 12px 14px 18px; }
+
+.daystatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-faint);
+  padding: 0 2px 8px;
+}
+
+.daystatus::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.daystatus.edited { color: var(--accent); }
+
+.daywarn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--danger-text);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+/* ---------- cartão do exercício ---------- */
+
+.exercise {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.ex-head {
+  background: var(--head-bg);
+  padding: 10px 12px;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--head-text);
+  border-bottom: 1px solid var(--border);
+}
+
+.ex-ref {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--head-sub);
+  margin-top: 2px;
+}
+
+.ex-goal {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--goal);
+  margin-top: 3px;
+}
+
+.ex-goal small { font-weight: 400; color: var(--goal-note); }
+
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.set-row:last-child { border-bottom: none; }
+
+.set-tag {
+  flex: 0 0 44px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: center;
+  background: var(--surface-2);
+  border-radius: 6px;
+  padding: 4px 0;
+}
+
+.set-reps {
+  flex: 1 1 auto;
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.set-reps small { display: block; font-size: 10.5px; color: var(--text-faint); }
+
+/* campo de REPS FEITAS (azul) */
+.reps-input-wrap { flex: 0 0 52px; }
+
+.reps-input {
+  width: 100%;
+  border: 1px solid var(--reps-border);
+  background: var(--reps-bg);
+  border-radius: 8px;
+  padding: 9px 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--reps-text);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.reps-input::placeholder { color: var(--reps-placeholder); font-weight: 400; font-size: 11px; }
+
+/* campo de CARGA (âmbar) */
+.set-input-wrap { flex: 0 0 92px; position: relative; }
+
+.set-input {
+  width: 100%;
+  border: 1px solid var(--load-border);
+  background: var(--load-bg);
+  border-radius: 8px;
+  padding: 9px 26px 9px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--load-text);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.set-input::placeholder { color: var(--load-placeholder); font-weight: 400; }
+
+.set-unit {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--load-unit);
+  pointer-events: none;
+}
+
+.toast {
+  position: sticky;
+  bottom: 8px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--accent);
+  height: 16px;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.toast.show { opacity: 1; }
+
+.hint {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  padding: 0 4px 6px;
+}
+
+/* ---------- botões ---------- */
+
+.editbar {
+  padding: 10px 14px 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.editbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.edit-field {
+  padding: 6px 12px 10px;
+}
+
+.edit-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.edit-input {
+  width: 100%;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  border-radius: 8px;
+  padding: 10px 10px;
+  font-size: 13.5px;
+  color: var(--input-text);
+  font-family: inherit;
+}
+
+.edit-input::placeholder { color: var(--input-placeholder); }
+
+.edit-exercise {
+  padding: 10px 10px 12px;
+}
+
+.ex-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 4px;
+}
+
+.ex-edit-row .ex-name-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 700;
+}
+
+/* botão de ícone (padrão = ação destrutiva; .swap-ex = neutra) */
+.icon-btn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.icon-btn.swap-ex {
+  border-color: var(--info-border);
+  background: var(--info-bg);
+  color: var(--info-text);
+}
+
+.sets-edit-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin: 6px 0 2px;
+}
+
+.edit-set-row {
+  padding: 6px 0;
+  gap: 8px;
+}
+
+.edit-set-row .set-edit-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.addbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 42px;
+  margin: 6px 0 4px;
+  border: 1px dashed var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 9px 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.edit-exercise .add-set {
+  margin-top: 4px;
+}
+
+.edit-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 2px 4px;
+}
+
+.savebtn {
+  min-height: 46px;
+  border: none;
+  background: var(--accent-bg);
+  color: var(--on-accent);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.resetbtn {
+  min-height: 42px;
+  border: 1px solid var(--warn-border);
+  background: var(--surface);
+  color: var(--warn-text);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 10px 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+/* botão "Copiar cargas da última sessão" (modo normal) */
+.copylast-btn { margin: 0 0 10px; }
+
+/* ---------- duplicar dia / backup ---------- */
+
+.dup-box,
+.backup-box {
+  margin-top: 14px;
+  padding: 10px 12px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.dup-box label,
+.backup-box label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.dup-row,
+.backup-row {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 6px;
+}
+
+.dup-row .dup-btn,
+.backup-row .backup-btn {
+  flex: 1 1 0;
+  margin: 0;
+}
+
+/* botões secundários (linha sólida) dentro dos painéis */
+.addbtn.dup-btn,
+.addbtn.backup-btn {
+  border-style: solid;
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* lembrete do último backup e campos de copiar/colar */
+.backup-last {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 0 0 2px;
+}
+
+.backup-last.stale { color: var(--warn-text); }
+
+.backup-textbox { margin-top: 6px; }
+
+.backup-textbox[hidden] { display: none; }
+
+.backup-text {
+  display: block;
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--input-text);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+.backup-text::placeholder { color: var(--input-placeholder); }
+
+/* ---------- reordenar por arraste ---------- */
+
+.drag-handle {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  border-radius: 8px;
+}
+
+.drag-handle svg { pointer-events: none; }
+
+.drag-handle:active { color: var(--accent); background: var(--surface-3); }
+
+.edit-set-row .drag-handle { width: 26px; }
+
+.dragging {
+  position: relative;
+  z-index: 5;
+  opacity: 0.96;
+  box-shadow: var(--shadow);
+  background: var(--surface);
+}
+
+.drop-before { box-shadow: 0 -3px 0 var(--dirty); }
+.drop-after { box-shadow: 0 3px 0 var(--dirty); }
+
+/* Durante o arraste de exercícios: cartões compactos (só a linha do nome)
+   para todos caberem na tela. */
+.sorting-ex .edit-exercise .edit-field,
+.sorting-ex .edit-exercise .sets-edit-label,
+.sorting-ex .edit-exercise .edit-set-row,
+.sorting-ex .edit-exercise .add-set { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { transition: none; }
+  button:active { transform: none; }
+}
