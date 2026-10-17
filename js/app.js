@@ -35,7 +35,7 @@
       state.date = t;
       var dt = document.getElementById("dt");
       if(dt) dt.value = t;
-      if(!state.editMode) renderBody();
+      if(!state.editMode && state.view !== "evolucao") renderBody();
     }
   }
   document.addEventListener("visibilitychange", function(){
@@ -97,32 +97,50 @@
   }
 
   function render(){
+    if(state.view === "evolucao" && state.editMode) state.view = "treino";
+    var evo = state.view === "evolucao";
     var origDay = currentOriginalDay();
     var slug = origDay.slug;
     var html = "";
-    html += '<div class="hdr"><div class="hdr-text"><h1>Treino da semana</h1><p id="dayTitle">' + escapeHtml(origDay.full) + "</p></div>" +
+    html += '<div class="hdr"><div class="hdr-text"><h1>Treino da semana</h1><p id="dayTitle">' + escapeHtml(evo ? "Evolução das cargas" : origDay.full) + "</p></div>" +
       '<button class="themebtn" id="themeToggle" type="button"></button></div>';
     html += '<div class="tabs">';
     DAYS.forEach(function(d, i){
-      html += '<button class="tab' + (i===state.day?" active":"") + (state.editMode && isDirty(d.slug) ? " dirty" : "") + '" data-day="'+i+'">' + d.label + "</button>";
+      html += '<button class="tab' + (!evo && i === state.day ? " active" : "") + (state.editMode && isDirty(d.slug) ? " dirty" : "") + '" data-day="' + i + '">' + d.label + "</button>";
     });
+    if(!state.editMode){
+      html += '<button class="tab tab-evo' + (evo ? " active" : "") + '" id="tabEvo" type="button">Evolução</button>';
+    }
     html += "</div>";
-    html += '<div class="datebar"><label for="dt">Data do treino</label><div class="datebar-controls"><input type="date" id="dt" value="'+state.date+'">' + (state.dateManual ? '<button class="todaybtn" id="goToday">Hoje</button>' : "") + "</div></div>";
-    html += '<div class="editbar"><button class="editbtn" id="editToggle" type="button">' + editBtnHtml(state.editMode) + "</button></div>";
-    html += '<div class="body" id="body"></div>';
-    html += '<div class="toast" id="toast">Salvo</div>';
+    if(evo){
+      html += '<div class="body" id="body"></div>';
+    } else {
+      html += '<div class="datebar"><label for="dt">Data do treino</label><div class="datebar-controls"><input type="date" id="dt" value="' + state.date + '">' + (state.dateManual ? '<button class="todaybtn" id="goToday">Hoje</button>' : "") + "</div></div>";
+      html += '<div class="editbar"><button class="editbtn" id="editToggle" type="button">' + editBtnHtml(state.editMode) + "</button></div>";
+      html += '<div class="body" id="body"></div>';
+      html += '<div class="toast" id="toast">Salvo</div>';
+    }
     app.innerHTML = html;
 
     var themeBtn = document.getElementById("themeToggle");
     Treino.refreshThemeButton();
     if(themeBtn) themeBtn.addEventListener("click", function(){ Treino.toggleTheme(); });
 
-    document.querySelectorAll(".tab").forEach(function(btn){
+    document.querySelectorAll(".tab[data-day]").forEach(function(btn){
       btn.addEventListener("click", function(){
         state.day = parseInt(this.getAttribute("data-day"), 10);
+        state.view = "treino";
         render();
       });
     });
+    var tabEvo = document.getElementById("tabEvo");
+    if(tabEvo) tabEvo.addEventListener("click", function(){ state.view = "evolucao"; render(); });
+
+    if(evo){
+      Treino.mountEvolucao(document.getElementById("body"));
+      return;
+    }
+
     document.getElementById("dt").addEventListener("change", function(){
       var v = this.value || todayStr();
       state.date = v;
@@ -607,8 +625,9 @@
   function refreshDirty(){
     if(!state.editMode) return;
     var dirty = dirtySlugs();
-    document.querySelectorAll(".tab").forEach(function(btn){
+    document.querySelectorAll(".tab[data-day]").forEach(function(btn){
       var d = DAYS[parseInt(btn.getAttribute("data-day"),10)];
+      if(!d) return;
       btn.classList.toggle("dirty", dirty.indexOf(d.slug) !== -1);
     });
     var save = document.getElementById("saveEdit");
@@ -662,6 +681,8 @@
     state.editMode = true;
     var btn = document.getElementById("editToggle");
     if(btn) btn.innerHTML = editBtnHtml(true);
+    var tabEvo = document.getElementById("tabEvo");
+    if(tabEvo) tabEvo.remove();
     renderBody();
   }
 

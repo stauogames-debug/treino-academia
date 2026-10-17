@@ -920,3 +920,75 @@ body.rt-pad-bar { padding-bottom: 176px; }
   .toast { transition: none; }
   button:active { transform: none; }
 }
+
+/* ---------- aba Evolução (gráfico de carga) ---------- */
+
+.evo-day { margin-bottom: 12px; }
+
+.evo-day-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 2px 2px 6px;
+}
+
+.evo-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.evo-ex {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  background: var(--head-bg);
+  color: var(--head-text);
+  border: none;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.evo-ex .ex-ref {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--head-sub);
+  margin-top: 2px;
+}
+
+.evo-detail { padding: 10px 12px 12px; }
+.evo-detail[hidden] { display: none; }
+
+.evo-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.evo-key { display: inline-flex; align-items: center; gap: 5px; }
+.evo-sw { width: 10px; height: 10px; border-radius: 3px; background: currentColor; }
+
+/* cores das séries: tokens do tema (nada fixo) */
+.evo-s0 { color: var(--accent); }
+.evo-s1 { color: var(--warn-text); }
+.evo-s2 { color: var(--info-text); }
+.evo-s3 { color: var(--danger-text); }
+.evo-s4 { color: var(--text-muted); }
+
+.evo-chart { display: block; width: 100%; height: auto; }
+.evo-grid { stroke: var(--border-strong); stroke-width: 1; }
+.evo-axis { fill: var(--text-faint); font-size: 10px; font-family: inherit; }
+.evo-line { fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.evo-dot { fill: currentColor; stroke: none; }
+
+.tab-evo { margin-left: auto; }
