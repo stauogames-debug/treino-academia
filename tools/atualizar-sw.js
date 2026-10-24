@@ -15,12 +15,13 @@ function lerAssets(swTexto) {
   return m[1].split("\n").map((l) => /"([^"]+)"/.exec(l)).filter(Boolean).map((x) => x[1]);
 }
 
-function calcularVersao(swTexto) {
+function calcularVersao(swTexto, lerArquivo) {
   const h = crypto.createHash("sha256");
+  lerArquivo = lerArquivo || ((arq) => fs.readFileSync(path.join(ROOT, arq)));
   lerAssets(swTexto).slice().sort().forEach((a) => {
     const arq = a === "./" ? "index.html" : a;
     h.update(a + "\0");
-    h.update(fs.readFileSync(path.join(ROOT, arq)));
+    h.update(lerArquivo(arq));
     h.update("\0");
   });
   return "treino-" + h.digest("hex").slice(0, 12);

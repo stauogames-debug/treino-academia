@@ -8,7 +8,7 @@ Copie o bloco abaixo e cole em um chat novo no Cursor, na pasta `APP-Treino`.
 
 Você está trabalhando no app **Treino da Semana**, pasta:
 
-`C:\Users\Davi Lucca\Downloads\APP-Treino`
+`C:\Users\Davi Lucca\OneDrive\Documentos\APP-Treino`
 
 É um app web simples (HTML + CSS + JS), em português, para anotar a carga (kg) e as reps feitas de cada série do treino. Não use framework. Não transforme em React/Vue. Mantenha o visual atual (azul escuro, campos amarelos, mobile-first, max-width 480px). Preserve o salvamento no `localStorage` (chave `treino:{slug}`) e o fallback `window.storage` (usado no celular). Não quebre o histórico já salvo.
 

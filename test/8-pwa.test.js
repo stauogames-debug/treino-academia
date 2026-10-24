@@ -114,12 +114,10 @@ test("pwa: a versão muda quando um arquivo muda (e só nesse caso)", () => {
   const lista = ASSETS.filter((a) => a !== "./");
   assert.equal(tool.calcularVersao(SW), tool.calcularVersao(SW), "estável");
   const orig = fs.readFileSync(path.join(ROOT, "css/styles.css"));
-  try {
-    fs.writeFileSync(path.join(ROOT, "css/styles.css"), Buffer.concat([orig, Buffer.from("\n/* x */")]));
-    assert.notEqual(tool.calcularVersao(SW), tool.versaoAtual(SW));
-  } finally {
-    fs.writeFileSync(path.join(ROOT, "css/styles.css"), orig);
-  }
+  const alterado = Buffer.concat([orig, Buffer.from("\n/* x */")]);
+  const versaoAlterada = tool.calcularVersao(SW, (arq) =>
+    arq === "css/styles.css" ? alterado : fs.readFileSync(path.join(ROOT, arq)));
+  assert.notEqual(versaoAlterada, tool.versaoAtual(SW));
   assert.equal(tool.calcularVersao(SW), tool.versaoAtual(SW));
   assert.ok(lista.length > 10);
 });

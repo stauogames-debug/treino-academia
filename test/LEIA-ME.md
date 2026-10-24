@@ -6,7 +6,7 @@ Rodam no computador (Node.js 18 ou mais novo), sem abrir navegador. Carregam o a
 ## Como rodar
 
 ```
-cd tests
+cd test
 npm install        # só na primeira vez (baixa o jsdom)
 npm test           # roda tudo
 node rodar.js arraste   # só os testes cujo nome contém "arraste"
@@ -18,13 +18,17 @@ node rodar.js arraste   # só os testes cujo nome contém "arraste"
 | --- | --- |
 | `1-unit.test.js` | Funções puras: ids, histórico (`upsertEntry`, `lastEntryBefore`, migração), `moveItem`/`dropIndex`, validação e montagem do backup |
 | `2-app.test.js` | Fluxos com a tela: registrar carga, migração, editor (renomear, adicionar, remover, copiar, resetar, trocar exercício, reordenar por arraste), segurança de dados e backup exportar/importar |
-| `4-visual.test.js` | Tema escuro/claro, tokens de cor e contraste, ícones SVG, cores de carga x reps, contrato do markup |
 | `3-goals.test.js` | Meta por exercício (dupla progressão): regra pura (`suggestGoal`, `formatGoal`) e a linha `Meta hoje` na tela |
+| `4-visual.test.js` | Tema escuro/claro, tokens de cor e contraste, ícones SVG, cores de carga x reps, contrato do markup |
 | `5-backup-extra.test.js` | Lembrete de "último backup" (`describeLastBackup`, `treino:lastBackup`) e botões Copiar / Colar backup (área de transferência, contingência por caixa de texto, importação por texto) |
 | `6-copiar-ultima.test.js` | Copiar cargas da última sessão para a data exibida (`Treino.copyLastLoads` + botão `#copyLast`): só carga, só o que está vazio, só datas anteriores |
 | `7-timer.test.js` | Temporizador de descanso (`js/timer.js`): contagem/pausa/zerar, ±15 s e atalhos, início automático ao salvar série de hoje (e quando NÃO inicia), editor esconde a barra, preferência `treino:timer` (fora do backup), falhas de storage |
 | `8-pwa.test.js` | PWA: manifest, ícones, `index.html`, lista de cache (`sw.js` → `ASSETS`), versão em dia (`node tools/atualizar-sw.js`), `sw.js` simulado (instalar/ativar/offline) e `js/pwa.js` |
+| `9-evolucao.test.js` | Gráfico de evolução: regras dos dados, SVG e fluxos da tela |
 | `harness.js` | Infra: abre o app, storage falso, helpers (`typeLoad`, `openEditor`, `drag`, `importFile`…) |
+| `rodar.js` | Descobre e carrega automaticamente todos os arquivos `*.test.js` nesta pasta, em ordem alfabética; permite filtrar pelo texto do nome do teste |
+
+O runner descobre atualmente nove arquivos `*.test.js`, de `1-unit.test.js` a `9-evolucao.test.js`. A lista acima reflete os arquivos encontrados pelo runner.
 
 ## O que NÃO cobre (teste à mão no celular)
 
