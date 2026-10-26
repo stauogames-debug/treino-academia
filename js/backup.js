@@ -22,7 +22,7 @@ window.Treino = window.Treino || {};
 // storage ou para o HTML sem passar por aqui).
 
 Treino.BACKUP_APP = "treino-da-semana";
-Treino.BACKUP_VERSION = 1;
+Treino.BACKUP_VERSION = 2;
 Treino.BACKUP_MAX_BYTES = 5 * 1024 * 1024;
 
 // Data do último backup MANUAL (exportar ou copiar). É preferência do
@@ -50,7 +50,7 @@ Treino.describeLastBackup = function(iso, now){
   return { text: "Último backup: há " + days + " dias", stale: days >= Treino.BACKUP_STALE_DAYS };
 };
 
-Treino.buildBackup = function(slugs, editBySlug, historyBySlug){
+Treino.buildBackup = function(slugs, editBySlug, historyBySlug, descanso){
   var days = {};
   slugs.forEach(function(slug){
     if(!has(editBySlug, slug) && !has(historyBySlug, slug)) return;
@@ -63,6 +63,7 @@ Treino.buildBackup = function(slugs, editBySlug, historyBySlug){
     app: Treino.BACKUP_APP,
     version: Treino.BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
+    descanso: Treino.normalizeDescanso ? Treino.normalizeDescanso(descanso) : [],
     days: days
   };
 };
@@ -184,6 +185,21 @@ Treino.validateBackup = function(obj, slugs){
   }
   var days = {};
   var stats = { days: 0, edits: 0, records: 0, dropped: 0 };
+  var descanso = [];
+  if(obj.version >= 2){
+    if(obj.descanso === undefined){
+      // Campo ausente em um v2 é equivalente a nenhuma data de descanso.
+    } else if(!Array.isArray(obj.descanso)){
+      stats.dropped++;
+    } else {
+      obj.descanso.forEach(function(data){
+        if(!validDate(data)){ stats.dropped++; return; }
+        if(descanso.indexOf(data) !== -1){ stats.dropped++; return; }
+        descanso.push(data);
+      });
+      descanso.sort();
+    }
+  }
   for(var k = 0; k < slugs.length; k++){
     var slug = slugs[k];
     if(!has(obj.days, slug)) continue;
@@ -205,6 +221,6 @@ Treino.validateBackup = function(obj, slugs){
   if(stats.days === 0){
     return { ok: false, error: "O backup não contém nenhum dia conhecido (seg, ter, qua, qui, sex)." };
   }
-  return { ok: true, days: days, exportedAt: typeof obj.exportedAt === "string" ? obj.exportedAt : "", stats: stats };
+  return { ok: true, days: days, descanso: descanso, exportedAt: typeof obj.exportedAt === "string" ? obj.exportedAt : "", stats: stats };
 };
 })();

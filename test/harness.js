@@ -28,7 +28,7 @@ function loadCore() {
   const sandbox = { console, Date, Math, JSON, Object, Array, Promise, setTimeout, clearTimeout };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
-["js/data/workouts.js", "js/storage.js", "js/history.js", "js/goals.js", "js/edit.js", "js/evolucao.js", "js/backup.js", "js/sortable.js", "js/icons.js"].forEach((f) => {
+  ["js/data/workouts.js", "js/storage.js", "js/history.js", "js/descanso.js", "js/goals.js", "js/edit.js", "js/evolucao.js", "js/backup.js", "js/sortable.js", "js/icons.js"].forEach((f) => {
     vm.runInContext(fs.readFileSync(path.join(ROOT, f), "utf8"), sandbox, { filename: f });
   });
   return sandbox.Treino;

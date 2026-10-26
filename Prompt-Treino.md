@@ -52,6 +52,7 @@ Você está trabalhando no app **Treino da Semana**, pasta:
   - **Lembrete** (`#backupLast`): "Último backup: nunca feito / hoje às HH:MM / ontem / há N dias" (`Treino.describeLastBackup(iso, now)`); em destaque (`.stale`) quando nunca feito ou com 7+ dias (`BACKUP_STALE_DAYS`). A data fica em `treino:lastBackup` (ISO), gravada só por Exportar e Copiar bem-sucedidos. É preferência do aparelho: **fora do arquivo de backup**, e importar **não** a altera nem conta como backup. Falha ao ler/gravar essa chave nunca atrapalha nem mostra alerta.
 - **Copiar cargas da última sessão** (botão `#copyLast`, só no modo normal e só se o histórico do dia foi lido): `Treino.copyLastLoads(diaEfetivo, historico, data)` (função pura, em `js/history.js`) preenche, para cada série **sem carga** na data exibida, a última carga anotada em data **estritamente anterior** (a mesma do placeholder). Copia **só a carga** (reps feitas são desempenho real e nunca são copiadas); não sobrescreve nada já anotado e preserva as reps já anotadas na data; só mexe nas chaves da estrutura atual (por id). Só atualiza a tela depois de gravar; falha → "Erro ao salvar". Toast "N cargas copiadas" / "Nada para copiar". Carga copiada não vira "sessão" para a meta (sem reps feitas, não conta).
 - **Temporizador de descanso entre séries (fase 1)** — barra fixa no rodapé (`#restTimer`, criada por `js/timer.js` **fora do `#app`**, para o `render()` não apagá-la). Regra completa em "Temporizador de descanso — como funciona" (abaixo).
+- **Modo descanso / dia sem treino (FEITO)** — marca uma data ISO específica, independente da aba semanal. A tela mostra o cartão "Dia de descanso" no lugar dos exercícios; a marcação é dado de treino, entra no backup e sincroniza via exportar/importar/copiar/colar. Regra completa abaixo.
 - **PWA (instalável e offline)** — manifest + service worker + ícones; abre em tela cheia pelo ícone na tela inicial e funciona sem internet. Regra completa em "PWA — como funciona" (abaixo). Não muda nenhum comportamento do app nem toca nos dados.
 - **Gráfico de evolução da carga (FEITO)** — aba "Evolução" depois de Sex. Só leitura: lista os exercícios de todos os dias; toque abre um SVG (sem biblioteca) com a carga de cada **série de trabalho** (faixa) nas datas anotadas. Regra completa em "Gráfico de evolução — como funciona" (abaixo). Código em `js/evolucao.js` (`Treino.evolucaoDados`, `Treino.svgEvolucao`, `Treino.mountEvolucao`).
 - **Ids estáveis por exercício e por série** (não mais por posição/índice): cada exercício tem um `id` (ex.: `seg_ex0`) e cada série tem um `id` único dentro do exercício (ex.: `s2`). O histórico é salvo com a chave `idExercicio_idSerie` em vez de `exIdx_setIdx`. Isso significa que **reordenar ou remover um exercício/série no meio da lista não troca mais a carga de lugar** — a carga continua associada ao exercício/série certo pelo id, não pela posição.
@@ -83,15 +84,16 @@ O app saiu de um único arquivo (`index.html.html` com HTML + CSS + JS juntos) p
 | `js/data/workouts.js` | Dados padrão do treino (`Treino.DAYS`: slug, label, full, exercises, sets, ref opcional) — usado como fallback quando não há edição salva. Também define `Treino.ensureIds` (gera/normaliza ids de exercício e série) e `Treino.makeId` (gera id novo e único para itens criados no editor) |
 | `js/storage.js`       | `storageGet` (null = não existe; rejeita em erro real), `storageSet`, `storageDelete`, `loadDayHistory` (`cb(hist, failed)`) |
 | `js/history.js`       | `lastEntryBefore` (último registro estritamente anterior à data), `entryForDate`, `upsertEntry` (grava carga e/ou reps feitas de forma independente via patch `{weight}` / `{repsDone}`; ordena por data e mantém os 30 mais recentes), `mergeHistoryArrays`, `migrateHistoryKeys` (converte chaves antigas `exIdx_setIdx` para `idExercicio_idSerie`) e `copyLastLoads` (copia a última carga anterior para as séries sem carga da data; função pura) |
+| `js/descanso.js`      | Funções puras `isDescanso`, `addDescanso`, `removeDescanso` e normalização de datas ISO, sem mutar a lista recebida |
 | `js/goals.js`         | Meta por exercício: `suggestGoal(exercicioEfetivo, historicoDoDia, dataExibida, stepKg)` → `{weight, reps, kind}` ou `null` (função pura), `formatGoal(g)` → `{text, note}`, constantes `STEP_KG` (por dia) e `DEFAULT_STEP_KG` |
 | `js/evolucao.js`      | Gráfico de evolução (só leitura). Funções puras: `evolucaoDados(exercicio, hist, hojeISO)` → `{sets, datas}` e `svgEvolucao(dados)` → HTML do SVG (ou `""`). Tela: `mountEvolucao(root)` lê todos os dias, nunca grava. Constantes `EVO_MAX_DATAS` (12) e `EVO_CLASSES` (5) |
-| `js/backup.js`        | `buildBackup(slugs, edits, hists)` e `validateBackup(obj, slugs)` (validação/limpeza do arquivo importado; sem acesso a storage nem DOM). Constantes `BACKUP_APP`, `BACKUP_VERSION`, `BACKUP_MAX_BYTES`; lembrete do último backup: `describeLastBackup(iso, now)`, `LASTBACKUP_KEY = "treino:lastBackup"`, `BACKUP_STALE_DAYS = 7` |
+| `js/backup.js`        | `buildBackup(slugs, edits, hists, descanso)` e `validateBackup(obj, slugs)` (formato v2; validação/limpeza do arquivo importado; aceita v1 antigo; sem acesso a storage nem DOM). Constantes `BACKUP_APP`, `BACKUP_VERSION = 2`, `BACKUP_MAX_BYTES`; lembrete do último backup: `describeLastBackup(iso, now)`, `LASTBACKUP_KEY = "treino:lastBackup"`, `BACKUP_STALE_DAYS = 7` |
 | `js/edit.js`          | Persistência da edição de treino por dia (`treino:edit:{slug}`), migração de edições antigas sem id (`loadDayEdit`, `cb(editData, failed)`), merge com o padrão (`effectiveDay`), clone editável (`cloneForEdit`), reset (`clearDayEdit`, via `storageDelete`) |
 | `js/icons.js`         | `Treino.icon(nome)` → `<svg>` decorativo (`aria-hidden`) que herda `currentColor`. Nomes: `edit`, `x`, `trash`, `repeat`, `plus`, `download`, `upload`, `sun`, `moon`, `copy`, `clipboard`, `play`, `pause`, `rotate-ccw`, `clock`, `volume`, `volume-off`, `grip`. Nome desconhecido → `""` |
 | `js/theme.js`         | Tema: `applyTheme`, `toggleTheme`, `loadTheme`, `refreshThemeButton`, `THEME_KEY = "treino:theme"`, `THEME_COLOR` (meta `theme-color`). Aplica o escuro ao carregar; `app.js` chama `loadTheme()` no fim |
 | `js/timer.js`         | Temporizador de descanso. Funções puras: `clampSeconds`, `formatMMSS`, `remainingMs`, `normalizeTimerPrefs`; constantes `TIMER_KEY = "treino:timer"`, `TIMER_MIN_S` (5), `TIMER_MAX_S` (900), `TIMER_DEFAULT_S` (90), `TIMER_PRESETS`, `TIMER_STEP_S`. Cria a barra no `document.body`; ganchos usados pelo `app.js`: `Treino.timerOnSetSaved(key)` e `Treino.timerSetEditing(bool)`; para testes: `Treino.timerState()` e `Treino.timerTick()`. Não grava treino nem histórico |
 | `js/sortable.js`      | Reordenar por arraste: `moveItem(arr, from, to)` e `dropIndex(centers, y)` (funções puras) e `startDrag(e, opts)` (Pointer Events, auto-rolagem, modo compacto, `onFinish(from, to, committed)`). Não altera dados: quem chama (`app.js`) move no rascunho e re-renderiza |
-| `test/`               | Testes automatizados (Node + jsdom, sem navegador, storage falso em memória — não mexem nos dados reais). A pasta se chama **`test`** (não `tests` nem `testes`). Arquivos: `harness.js` (abre o app e helpers), `1-unit.test.js` (funções puras), `2-app.test.js` (fluxos com a tela), `3-goals.test.js` (meta), `4-visual.test.js` (tema, contraste, ícones), `5-backup-extra.test.js` (lembrete + Copiar/Colar), `6-copiar-ultima.test.js` (copiar cargas), `7-timer.test.js` (temporizador), `8-pwa.test.js` (PWA), `9-evolucao.test.js` (gráfico: regra pura + tela), `rodar.js` (runner), `LEIA-ME.md`. Rodar: `cd test && npm install && npm test` |
+| `test/`               | Testes automatizados (Node + jsdom, sem navegador, storage falso em memória — não mexem nos dados reais). A pasta se chama **`test`** (não `tests` nem `testes`). Arquivos: `harness.js` (abre o app e helpers), `1-unit.test.js` (funções puras), `2-app.test.js` (fluxos com a tela), `3-goals.test.js` (meta), `4-visual.test.js` (tema, contraste, ícones), `5-backup-extra.test.js` (lembrete + Copiar/Colar), `6-copiar-ultima.test.js` (copiar cargas), `7-timer.test.js` (temporizador), `8-pwa.test.js` (PWA), `9-evolucao.test.js` (gráfico: regra pura + tela), `10-descanso.test.js` (modo descanso e backup v2), `rodar.js` (runner), `LEIA-ME.md`. Rodar: `cd test && npm install && npm test` |
 | `manifest.webmanifest`| Nome, `display: standalone`, `start_url`/`scope` relativos (`./`), cores (`#0B1219`) e ícones (`any` 192/512 e `maskable` 512) |
 | `sw.js`               | Service worker: lista `ASSETS` (todos os arquivos do app, em caminhos **relativos**) e `VERSION` **gerada** por `tools/atualizar-sw.js`. Cache primeiro; instala com `cache: "reload"`; ativa apagando só caches `treino-*` antigos; ignora POST e outros sites |
 | `js/pwa.js`           | Registra `sw.js` só em HTTPS ou localhost, depois do `load`; qualquer falha é ignorada. Carregado **por último** |
@@ -104,16 +106,17 @@ Scripts carregam nesta ordem, sem módulos ES (para abrir como arquivo local). *
 1. `js/data/workouts.js`
 2. `js/storage.js`
 3. `js/history.js`
-4. `js/goals.js`
-5. `js/edit.js`
-6. `js/backup.js`
-7. `js/sortable.js`
-8. `js/icons.js`
-9. `js/theme.js`
-10. `js/timer.js`
-11. `js/evolucao.js`
-12. `js/app.js`
-13. `js/pwa.js`
+4. `js/descanso.js`
+5. `js/goals.js`
+6. `js/edit.js`
+7. `js/backup.js`
+8. `js/sortable.js`
+9. `js/icons.js`
+10. `js/theme.js`
+11. `js/timer.js`
+12. `js/evolucao.js`
+13. `js/app.js`
+14. `js/pwa.js`
 
 Namespace global: `window.Treino`.
 
@@ -139,17 +142,17 @@ Formato salvo em `treino:edit:{slug}` (quando o usuário edita pelo app — já 
 
 A chave de cada série no histórico é `idExercicio + "_" + idSerie` (ex.: `seg_ex0_s2`), calculada sobre a lista **efetiva** (editada ou padrão). Reordenar, adicionar no meio ou remover exercícios/séries **não desalinha mais o histórico**, porque a chave depende do id, não da posição. Chaves antigas (`exIdx_setIdx`) são migradas automaticamente na primeira leitura de cada dia.
 
-Formato do arquivo de backup (`version: 1`; `edit: null` = dia usa o treino padrão):
+Formato atual do arquivo de backup (`version: 2`; `descanso` é uma lista raiz de datas ISO; `edit: null` = dia usa o treino padrão):
 
 ```json
-{ "app": "treino-da-semana", "version": 1, "exportedAt": "2026-09-28T23:10:00.000Z",
+{ "app": "treino-da-semana", "version": 2, "exportedAt": "2026-09-28T23:10:00.000Z", "descanso": ["2026-10-14"],
   "days": {
     "seg": { "edit": null, "history": { "seg_ex0_s0": [ { "date": "2026-09-22", "weight": 23, "repsDone": "15" } ] } },
     "ter": { "edit": { "full": "Terça - Pull", "exercises": [ { "id": "ter_ex0", "name": "…", "ref": "", "sets": [ { "id": "s0", "reps": "10" } ] } ] }, "history": {} }
   } }
 ```
 
-Se o formato mudar no futuro, aumente `BACKUP_VERSION` e mantenha a leitura de versões antigas em `validateBackup`.
+Backups `version: 1` sem `descanso` continuam importáveis e restauram a lista vazia. Datas inválidas no campo `descanso` são descartadas e contadas, sem rejeitar o backup. Aumente `BACKUP_VERSION` em futuras mudanças e mantenha a leitura de versões antigas em `validateBackup`.
 
 Formato de um registro dentro do histórico (`treino:{slug}`), por chave de série — `weight` e `repsDone` são independentes, cada um pode existir sem o outro:
 
@@ -161,18 +164,17 @@ Formato de um registro dentro do histórico (`treino:{slug}`), por chave de sér
 
 Ordem combinada das próximas (cada uma só quando o usuário mandar):
 
-1. Modo descanso / dia sem treino
-2. Fases seguintes de metas/progressão (pontos, níveis, XP, metas semanais, semana leve/deload) — a fase 1 (meta por exercício) já está pronta; o gráfico de **carga** da aba Evolução já está pronto (gráfico das **reps feitas** ainda não)
-3. Fase B do visual (observações, grupo muscular, foto, treinos livres) — adiada
+1. Fases seguintes de metas/progressão (pontos, níveis, XP, metas semanais, semana leve/deload) — a fase 1 (meta por exercício) já está pronta; o gráfico de **carga** da aba Evolução já está pronto (gráfico das **reps feitas** ainda não)
+2. Fase B do visual (observações, grupo muscular, foto, treinos livres) — adiada
 
 Possível, só se o usuário pedir: aviso do fim do descanso com o app fechado (exige push com servidor); botão "Instalar app" próprio no Android (`beforeinstallprompt`).
 
-Já feitos (não refazer): dark mode, copiar cargas da última sessão, temporizador de descanso, backup Copiar/Colar + lembrete, PWA, gráfico de evolução da carga.
+Já feitos (não refazer): dark mode, copiar cargas da última sessão, temporizador de descanso entre séries, modo descanso por data, backup Copiar/Colar + lembrete, PWA, gráfico de evolução da carga.
 
 ### Pendências conhecidas (fazer antes das metas, só quando o usuário pedir)
 
 - **Renomear um exercício no campo de nome mantém o mesmo id** (de propósito: serve para corrigir erro de digitação sem perder o histórico). Para trocar por um exercício diferente, usar o botão 🔄 "Trocar exercício" (já feito, gera id novo). Assim a meta, que usa o histórico por id, não recebe cargas de outro exercício.
-- Já feitos, na ordem: exportar/importar, "trocar exercício" com id novo, reordenar por arraste, testes automatizados, `goals.js`, tema escuro/claro + ícones SVG, backup Copiar/Colar + lembrete do último backup, copiar cargas da última sessão, temporizador de descanso, PWA e gráfico de evolução da carga.
+- Já feitos, na ordem: exportar/importar, "trocar exercício" com id novo, reordenar por arraste, testes automatizados, `goals.js`, tema escuro/claro + ícones SVG, backup Copiar/Colar + lembrete do último backup, copiar cargas da última sessão, temporizador de descanso, PWA, gráfico de evolução da carga e modo descanso por data.
 
 ### Meta por exercício — como funciona (fase 1, FEITA)
 
@@ -248,6 +250,18 @@ Pontos, níveis, XP, metas semanais, semana leve (deload) e gráficos são fases
 - **Testes:** `test/8-pwa.test.js` (17 testes): manifest (campos, cores iguais ao `theme-color`, caminhos relativos), ícones (existem, tamanho certo, maskable/Apple sem transparência), `index.html` (links, `pwa.js` por último, ordem dos scripts preservada), `ASSETS` completo e existente, `VERSION` em dia (e que muda só quando um arquivo muda), `sw.js` num ambiente simulado (instala tudo com `reload`, ativa apagando só `treino-*`, abre do cache, cai no `index.html`, ignora POST e outros sites), `pwa.js` (HTTPS/localhost registra; `file://`, HTTP comum e sem suporte não; falhas ignoradas), nenhum acesso a storage, e o app abre normal sem erro.
 - **Teste manual no celular (o jsdom não cobre service worker de verdade):** abrir o link publicado, instalar, abrir pelo ícone (tela cheia, ícone certo, sem recorte estranho); **modo avião → abrir o app** (carrega e salva carga normalmente); atualizar o app (publicar versão nova, abrir, fechar e abrir de novo → mudança aparece); tema escuro e claro em tela cheia; no **iPhone**, confirmar que o app instalado começa sem histórico, importar o backup feito no Safari e conferir cargas, treino editado, tema e preferência do temporizador (a preferência `treino:timer`, o tema e a data do último backup também não vêm do Safari).
 
+### Modo descanso / dia sem treino — como funciona (FEITO)
+
+**Objetivo:** marcar uma data específica em que não houve treino; a marcação não pertence a uma aba/dia fixo da semana.
+
+- **Armazenamento:** `treino:descanso` é uma lista JSON ordenada, sem duplicatas, de datas ISO (`AAAA-MM-DD`). É dado de treino e entra no backup; não é preferência local. `js/descanso.js` oferece `Treino.isDescanso(lista, data)`, `addDescanso` e `removeDescanso`, sem mutar a entrada.
+- **Interface:** o botão na barra da data alterna entre “Marcar descanso” e “Remover descanso”. No dia marcado, o corpo mostra somente o cartão “Dia de descanso”; a lista, a meta, os campos e “Copiar cargas da última sessão” somem. O painel de backup continua disponível.
+- **Registro acidental/intencional:** se um evento de edição de carga/reps chegar para uma data marcada (por exemplo, um campo que ainda estava ativo durante a troca de data), o app pede confirmação. Confirmar remove a marca e salva a alteração normalmente; cancelar restaura o campo e não grava nem inicia `timerOnSetSaved`.
+- **Segurança:** leitura ausente significa lista vazia; JSON/formato inválido ou falha de leitura impede gravar sobre a chave. Falha de escrita mantém a tela/estado atual e mostra o toast de erro já existente; não há alerta novo. `goals.js` e `evolucao.js` não precisam de regra adicional porque descanso não cria registros numéricos.
+- **Backup v2:** `descanso` fica na raiz do JSON. `validateBackup` valida datas reais e descarta itens inválidos com contagem; backup v1 sem o campo restaura lista vazia. Exportar, copiar, importar e o backup automático anterior à importação incluem a chave.
+- **Arquivos:** `js/descanso.js`, `js/app.js`, `js/backup.js`, `css/styles.css`, `index.html`, `sw.js`, `test/10-descanso.test.js` e este documento.
+- **Testes:** `test/10-descanso.test.js` cobre as funções puras, UI, confirmação/cancelamento e temporizador, backup v1/v2, validação e falhas de storage.
+
 ### Visual — regras ao mexer no CSS/markup
 
 - **Token novo de texto/fundo entra também na lista `PARES` de `test/4-visual.test.js`** (foi o que se fez com os `--timer-*`).
@@ -258,7 +272,7 @@ Pontos, níveis, XP, metas semanais, semana leve (deload) e gráficos são fases
 ### Regras de implementação
 
 - **PWA:** mudou qualquer arquivo listado em `ASSETS` (`sw.js`) → `node tools/atualizar-sw.js`, depois `npm test`. Arquivo novo em `js/`, `css/` ou `icons/` → entra em `ASSETS` e no `index.html` (se for script/CSS).
-- **Testes:** antes de dar uma mudança como pronta, rode `cd test && npm test` (pasta **`test`**, não `tests`; precisa terminar com 0 falharam; hoje são **203** testes). Mudou comportamento → ajuste/crie o teste junto; achou bug → primeiro um teste que falha, depois a correção. Faça os testes cobrirem o que o usuário realmente espera (ex.: "a carga continua no exercício certo depois de reordenar"), não só que o código roda. O jsdom não tem layout nem toque: arraste, rolagem, modo compacto e download/upload de arquivo continuam exigindo teste manual no celular.
+- **Testes:** antes de dar uma mudança como pronta, rode `cd test && npm test` (pasta **`test`**, não `tests`; precisa terminar com 0 falharam; hoje são **212** testes). Mudou comportamento → ajuste/crie o teste junto; achou bug → primeiro um teste que falha, depois a correção. Faça os testes cobrirem o que o usuário realmente espera (ex.: "a carga continua no exercício certo depois de reordenar"), não só que o código roda. O jsdom não tem layout nem toque: arraste, rolagem, modo compacto e download/upload de arquivo continuam exigindo teste manual no celular.
 - Continue em arquivos separados (não volte tudo para um HTML só).
 - Altere o mínimo necessário; não refatore o que já funciona.
 - Interface em português, fácil de usar no celular (dedo grande, poucos toques).

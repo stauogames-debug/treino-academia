@@ -25,10 +25,11 @@ node rodar.js arraste   # só os testes cujo nome contém "arraste"
 | `7-timer.test.js` | Temporizador de descanso (`js/timer.js`): contagem/pausa/zerar, ±15 s e atalhos, início automático ao salvar série de hoje (e quando NÃO inicia), editor esconde a barra, preferência `treino:timer` (fora do backup), falhas de storage |
 | `8-pwa.test.js` | PWA: manifest, ícones, `index.html`, lista de cache (`sw.js` → `ASSETS`), versão em dia (`node tools/atualizar-sw.js`), `sw.js` simulado (instalar/ativar/offline) e `js/pwa.js` |
 | `9-evolucao.test.js` | Gráfico de evolução: regras dos dados, SVG e fluxos da tela |
+| `10-descanso.test.js` | Marcação de descanso por data, confirmação de gravação e backup v2 |
 | `harness.js` | Infra: abre o app, storage falso, helpers (`typeLoad`, `openEditor`, `drag`, `importFile`…) |
 | `rodar.js` | Descobre e carrega automaticamente todos os arquivos `*.test.js` nesta pasta, em ordem alfabética; permite filtrar pelo texto do nome do teste |
 
-O runner descobre atualmente nove arquivos `*.test.js`, de `1-unit.test.js` a `9-evolucao.test.js`. A lista acima reflete os arquivos encontrados pelo runner.
+O runner descobre atualmente dez arquivos `*.test.js`, de `1-unit.test.js` a `10-descanso.test.js`. A lista acima reflete os arquivos encontrados pelo runner.
 
 ## O que NÃO cobre (teste à mão no celular)
 

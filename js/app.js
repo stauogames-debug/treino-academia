@@ -5,6 +5,8 @@
     date: todayStr(),
     dateManual: false,   // true quando o usuário escolheu uma data diferente de hoje na mão
     history: {},
+    descanso: [],
+    descansoFailed: false,
     historyFailed: {},  // slug -> true se a leitura do histórico falhou (bloqueia gravação)
     editFailed: {},     // slug -> true se a leitura da edição salva falhou
     editData: {},      // slug -> dados editados salvos (ou null)
@@ -115,7 +117,7 @@
     if(evo){
       html += '<div class="body" id="body"></div>';
     } else {
-      html += '<div class="datebar"><label for="dt">Data do treino</label><div class="datebar-controls"><input type="date" id="dt" value="' + state.date + '">' + (state.dateManual ? '<button class="todaybtn" id="goToday">Hoje</button>' : "") + "</div></div>";
+      html += '<div class="datebar"><label for="dt">Data do treino</label><div class="datebar-controls"><input type="date" id="dt" value="' + state.date + '">' + (state.dateManual ? '<button class="todaybtn" id="goToday">Hoje</button>' : "") + '<button class="rest-toggle" id="markRest" type="button"' + (state.descansoFailed ? ' disabled' : '') + '>' + (Treino.isDescanso(state.descanso, state.date) ? "Remover descanso" : "Marcar descanso") + "</button></div></div>";
       html += '<div class="editbar"><button class="editbtn" id="editToggle" type="button">' + editBtnHtml(state.editMode) + "</button></div>";
       html += '<div class="body" id="body"></div>';
       html += '<div class="toast" id="toast">Salvo</div>';
@@ -155,6 +157,8 @@
         render();
       });
     }
+    var restBtn = document.getElementById("markRest");
+    if(restBtn) restBtn.addEventListener("click", toggleDescanso);
     document.getElementById("editToggle").addEventListener("click", function(){
       if(state.editMode){
         if(anyDirty() && !confirm("Há alterações não salvas. Fechar a edição mesmo assim?")) return;
@@ -164,7 +168,7 @@
 
     ensureEffective(slug, function(eff){
       loadHistoryMigrated(slug, eff, function(){
-        renderBody();
+        loadDescanso(function(){ renderBody(); });
       });
     });
   }
@@ -178,6 +182,45 @@
     var edited = !!state.editData[slug];
     return '<div class="daystatus ' + (edited ? "edited" : "default") + '">' +
       (edited ? "Treino editado" : "Treino padrão") + "</div>";
+  }
+
+  function loadDescanso(cb){
+    Treino.storageGet("treino:descanso").then(function(res){
+      if(!res || !res.value){ state.descanso = []; state.descansoFailed = false; }
+      else {
+        var parsed;
+        try { parsed = JSON.parse(res.value); } catch(e){ state.descansoFailed = true; paintDescansoButton(); if(cb) cb(); return; }
+        if(!Array.isArray(parsed)){ state.descansoFailed = true; paintDescansoButton(); if(cb) cb(); return; }
+        state.descanso = Treino.normalizeDescanso(parsed);
+        if(parsed.some(function(data){ return state.descanso.indexOf(data) === -1; })){
+          state.descansoFailed = true;
+          paintDescansoButton();
+          if(cb) cb();
+          return;
+        }
+        state.descansoFailed = false;
+      }
+      paintDescansoButton();
+      if(cb) cb();
+    }, function(){ state.descansoFailed = true; paintDescansoButton(); if(cb) cb(); });
+  }
+
+  function paintDescansoButton(){
+    var btn = document.getElementById("markRest");
+    if(!btn) return;
+    btn.disabled = state.descansoFailed;
+    btn.textContent = Treino.isDescanso(state.descanso, state.date) ? "Remover descanso" : "Marcar descanso";
+  }
+
+  function toggleDescanso(){
+    if(state.descansoFailed){ showSavedToast("Leitura falhou: recarregue"); return; }
+    var data = state.date;
+    var next = Treino.isDescanso(state.descanso, data) ? Treino.removeDescanso(state.descanso, data) : Treino.addDescanso(state.descanso, data);
+    Treino.storageSet("treino:descanso", JSON.stringify(next)).then(function(){
+      state.descanso = next;
+      render();
+      showSavedToast("Salvo");
+    }, function(){ showSavedToast("Erro ao salvar"); });
   }
 
   // ---------- Modo normal (registrar cargas) ----------
@@ -196,7 +239,11 @@
     var hist = state.history[slug] || {};
     var body = document.getElementById("body");
     if(!body) return;
-    var html = dayStatusHtml(slug);
+    var html = "";
+    if(Treino.isDescanso(state.descanso, state.date)){
+      html += '<div class="rest-day"><strong>Dia de descanso</strong></div>';
+    } else {
+    html += dayStatusHtml(slug);
     if(state.historyFailed[slug]){
       html += '<div class="daywarn">⚠ Não foi possível ler o histórico deste dia. Por segurança, o salvamento das cargas está bloqueado para não sobrescrever nada. Recarregue a página.</div>';
     }
@@ -242,6 +289,7 @@
       });
       html += "</div>";
     });
+    }
     html += '<div class="backup-box"><label>Backup (treino + histórico)</label>' +
       '<div class="backup-last" id="backupLast"></div>' +
       '<div class="backup-row"><button class="addbtn backup-btn" id="exportBackup" type="button">' + Treino.icon("download") + 'Exportar</button>' +
@@ -298,23 +346,35 @@
         } else {
           patch.repsDone = raw === "" ? undefined : raw;
         }
-        hist2[key] = Treino.upsertEntry(hist2[key], state.date, patch);
-        if(hist2[key] && hist2[key].length === 0) delete hist2[key];
-        state.history[slug2] = hist2;
-        // Série concluída = carga (> 0) ou reps feitas salvas. Só conta no dia
-        // de hoje (corrigir um treino antigo não dispara o descanso).
-        var savedSet = (field === "weight") ? (patch.weight > 0) : !!patch.repsDone;
-        var saveDate = state.date;
-        Treino.storageSet("treino:" + slug2, JSON.stringify(hist2)).then(function(){
-          showSavedToast("Salvo");
-          try {
-            if(savedSet && saveDate === todayStr() && Treino.timerOnSetSaved){
-              Treino.timerOnSetSaved(key + "@" + saveDate);
-            }
-          } catch(e){}
-        }, function(){
-          showSavedToast("Erro ao salvar");
-        });
+        var entryDate = state.date;
+        var markedRest = Treino.isDescanso(state.descanso, entryDate);
+        function saveEntry(){
+          hist2[key] = Treino.upsertEntry(hist2[key], entryDate, patch);
+          if(hist2[key] && hist2[key].length === 0) delete hist2[key];
+          state.history[slug2] = hist2;
+          var savedSet = (field === "weight") ? (patch.weight > 0) : !!patch.repsDone;
+          var saveDate = entryDate;
+          Treino.storageSet("treino:" + slug2, JSON.stringify(hist2)).then(function(){
+            if(markedRest) render();
+            showSavedToast("Salvo");
+            try { if(savedSet && saveDate === todayStr() && Treino.timerOnSetSaved) Treino.timerOnSetSaved(key + "@" + saveDate); } catch(e){}
+          }, function(){ showSavedToast("Erro ao salvar"); });
+        }
+        if(markedRest){
+          var fieldEl = this;
+          if(!confirm("Este dia está marcado como descanso. Remover a marcação e anotar o treino?")){
+            restore(fieldEl);
+            showSavedToast("Salvamento cancelado");
+            return;
+          }
+          var nextDescanso = Treino.removeDescanso(state.descanso, state.date);
+          Treino.storageSet("treino:descanso", JSON.stringify(nextDescanso)).then(function(){
+            state.descanso = nextDescanso;
+            saveEntry();
+          }, function(){ restore(fieldEl); showSavedToast("Erro ao salvar"); });
+          return;
+        }
+        saveEntry();
       });
     });
 
@@ -420,7 +480,7 @@
           ".\nO backup não foi copiado para não sair incompleto. Recarregue a página e tente de novo.");
         return;
       }
-      var text = JSON.stringify(Treino.buildBackup(slugList(), cur.edits, cur.hists));
+      var text = JSON.stringify(Treino.buildBackup(slugList(), cur.edits, cur.hists, cur.descanso));
       var box = document.getElementById("copyBox");
       if(box) box.hidden = true;
       writeClipboard(text).then(function(){
@@ -438,8 +498,12 @@
   // da tela). Dias que não puderam ser lidos vão em "failed" e ficam fora de
   // edits/hists, para nunca exportar um dia como se estivesse vazio.
   function readAllFresh(cb){
-    var edits = {}, hists = {}, failed = [];
-    var pending = DAYS.length;
+    var edits = {}, hists = {}, descanso = [], failed = [];
+    var pending = DAYS.length + 1;
+    function doneOne(){
+      pending--;
+      if(pending === 0) cb({ edits: edits, hists: hists, descanso: descanso, failed: failed });
+    }
     DAYS.forEach(function(d){
       Treino.loadDayEdit(d.slug, function(editData, editFailed){
         var eff = Treino.effectiveDay(d, editData);
@@ -451,11 +515,21 @@
             edits[d.slug] = hasEdit ? eff : null;
             hists[d.slug] = Treino.migrateHistoryKeys(eff, hist).hist || {};
           }
-          pending--;
-          if(pending === 0) cb({ edits: edits, hists: hists, failed: failed });
+          doneOne();
         });
       });
     });
+    Treino.storageGet("treino:descanso").then(function(res){
+      if(res && res.value){
+        try {
+          var parsed = JSON.parse(res.value);
+          if(!Array.isArray(parsed)) throw new Error("formato inválido");
+          descanso = Treino.normalizeDescanso(parsed);
+          if(parsed.some(function(data){ return descanso.indexOf(data) === -1; })) throw new Error("data inválida");
+        } catch(e){ failed.push({ label: "descanso" }); }
+      }
+      doneOne();
+    }, function(){ failed.push({ label: "descanso" }); doneOne(); });
   }
 
   function stamp(){
@@ -486,7 +560,7 @@
           ".\nO backup não foi gerado para não sair incompleto. Recarregue a página e tente de novo.");
         return;
       }
-      var backup = Treino.buildBackup(slugList(), cur.edits, cur.hists);
+      var backup = Treino.buildBackup(slugList(), cur.edits, cur.hists, cur.descanso);
       downloadJson("treino-backup-" + stamp() + ".json", JSON.stringify(backup, null, 2));
       markBackupDone();
       showSavedToast("Backup exportado");
@@ -561,9 +635,9 @@
       // Backup automático do que deu para ler (só se houver algo a guardar).
       var hasData = Object.keys(cur.edits).some(function(k){
         return cur.edits[k] || Object.keys(cur.hists[k] || {}).length;
-      });
+      }) || cur.descanso.length > 0;
       if(hasData){
-        var prev = Treino.buildBackup(slugList(), cur.edits, cur.hists);
+        var prev = Treino.buildBackup(slugList(), cur.edits, cur.hists, cur.descanso);
         downloadJson("treino-backup-antes-da-importacao-" + stamp() + ".json", JSON.stringify(prev, null, 2));
       }
 
@@ -574,6 +648,7 @@
         writes.push(Treino.storageSet("treino:" + d.slug, JSON.stringify(day.history)));
         writes.push(day.edit ? Treino.saveDayEdit(d.slug, day.edit) : Treino.clearDayEdit(d.slug));
       });
+      writes.push(Treino.storageSet("treino:descanso", JSON.stringify(res.descanso || [])));
       Promise.all(writes).then(function(){
         resetCaches();
         render();
