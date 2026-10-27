@@ -85,7 +85,7 @@ O app saiu de um único arquivo (`index.html.html` com HTML + CSS + JS juntos) p
 | `js/storage.js`       | `storageGet` (null = não existe; rejeita em erro real), `storageSet`, `storageDelete`, `loadDayHistory` (`cb(hist, failed)`) |
 | `js/history.js`       | `lastEntryBefore` (último registro estritamente anterior à data), `entryForDate`, `upsertEntry` (grava carga e/ou reps feitas de forma independente via patch `{weight}` / `{repsDone}`; ordena por data e mantém os 30 mais recentes), `mergeHistoryArrays`, `migrateHistoryKeys` (converte chaves antigas `exIdx_setIdx` para `idExercicio_idSerie`) e `copyLastLoads` (copia a última carga anterior para as séries sem carga da data; função pura) |
 | `js/descanso.js`      | Funções puras `isDescanso`, `addDescanso`, `removeDescanso` e normalização de datas ISO, sem mutar a lista recebida |
-| `js/goals.js`         | Meta por exercício: `suggestGoal(exercicioEfetivo, historicoDoDia, dataExibida, stepKg)` → `{weight, reps, kind}` ou `null` (função pura), `formatGoal(g)` → `{text, note}`, constantes `STEP_KG` (por dia) e `DEFAULT_STEP_KG` |
+| `js/goals.js`         | Meta por exercício: `suggestGoal(exercicioEfetivo, historicoDoDia, dataExibida, stepKg)` → `{weight, reps, kind}` ou `null` (função pura), `formatGoal(g)` → `{text, note}`, constantes `STEP_KG` (por dia), `DEFAULT_STEP_KG`, `DELOAD_HEAVY_WEEKS` e `DELOAD_REDUCTION` |
 | `js/evolucao.js`      | Gráfico de evolução (só leitura). Funções puras: `evolucaoDados(exercicio, hist, hojeISO)` → `{sets, datas}` e `svgEvolucao(dados)` → HTML do SVG (ou `""`). Tela: `mountEvolucao(root)` lê todos os dias, nunca grava. Constantes `EVO_MAX_DATAS` (12) e `EVO_CLASSES` (5) |
 | `js/backup.js`        | `buildBackup(slugs, edits, hists, descanso)` e `validateBackup(obj, slugs)` (formato v2; validação/limpeza do arquivo importado; aceita v1 antigo; sem acesso a storage nem DOM). Constantes `BACKUP_APP`, `BACKUP_VERSION = 2`, `BACKUP_MAX_BYTES`; lembrete do último backup: `describeLastBackup(iso, now)`, `LASTBACKUP_KEY = "treino:lastBackup"`, `BACKUP_STALE_DAYS = 7` |
 | `js/edit.js`          | Persistência da edição de treino por dia (`treino:edit:{slug}`), migração de edições antigas sem id (`loadDayEdit`, `cb(editData, failed)`), merge com o padrão (`effectiveDay`), clone editável (`cloneForEdit`), reset (`clearDayEdit`, via `storageDelete`) |
@@ -164,21 +164,21 @@ Formato de um registro dentro do histórico (`treino:{slug}`), por chave de sér
 
 Ordem combinada das próximas (cada uma só quando o usuário mandar):
 
-1. Fases seguintes de metas/progressão (pontos, níveis, XP, metas semanais, semana leve/deload) — a fase 1 (meta por exercício) já está pronta; o gráfico de **carga** da aba Evolução já está pronto (gráfico das **reps feitas** ainda não)
+1. Fases seguintes de metas/progressão (pontos, níveis, XP e metas semanais) — meta por exercício e semana leve/deload estão prontas; o gráfico de **carga** da aba Evolução já está pronto (gráfico das **reps feitas** ainda não)
 2. Fase B do visual (observações, grupo muscular, foto, treinos livres) — adiada
 
 Possível, só se o usuário pedir: aviso do fim do descanso com o app fechado (exige push com servidor); botão "Instalar app" próprio no Android (`beforeinstallprompt`).
 
-Já feitos (não refazer): dark mode, copiar cargas da última sessão, temporizador de descanso entre séries, modo descanso por data, backup Copiar/Colar + lembrete, PWA, gráfico de evolução da carga.
+Já feitos (não refazer): dark mode, copiar cargas da última sessão, temporizador de descanso entre séries, modo descanso por data, backup Copiar/Colar + lembrete, PWA, gráfico de evolução da carga, semana leve/deload automática.
 
 ### Pendências conhecidas (fazer antes das metas, só quando o usuário pedir)
 
 - **Renomear um exercício no campo de nome mantém o mesmo id** (de propósito: serve para corrigir erro de digitação sem perder o histórico). Para trocar por um exercício diferente, usar o botão 🔄 "Trocar exercício" (já feito, gera id novo). Assim a meta, que usa o histórico por id, não recebe cargas de outro exercício.
-- Já feitos, na ordem: exportar/importar, "trocar exercício" com id novo, reordenar por arraste, testes automatizados, `goals.js`, tema escuro/claro + ícones SVG, backup Copiar/Colar + lembrete do último backup, copiar cargas da última sessão, temporizador de descanso, PWA, gráfico de evolução da carga e modo descanso por data.
+- Já feitos, na ordem: exportar/importar, "trocar exercício" com id novo, reordenar por arraste, testes automatizados, `goals.js`, tema escuro/claro + ícones SVG, backup Copiar/Colar + lembrete do último backup, copiar cargas da última sessão, temporizador de descanso, PWA, gráfico de evolução da carga, modo descanso por data e semana leve/deload automática.
 
 ### Meta por exercício — como funciona (fase 1, FEITA)
 
-Pontos, níveis, XP, metas semanais, semana leve (deload) e gráficos são fases posteriores e **não** fazem parte desta.
+Pontos, níveis, XP, metas semanais e gráficos de reps feitas continuam como fases posteriores. A semana leve/deload automática já está implementada como extensão desta meta.
 
 **Objetivo:** abaixo de cada exercício do modo normal, uma linha com a meta sugerida para a data exibida, ex.: `Meta hoje: 25 kg × 8`. Só leitura.
 
@@ -192,16 +192,17 @@ Pontos, níveis, XP, metas semanais, semana leve (deload) e gráficos são fases
 **Regra (ordem de avaliação, s1 = sessão mais recente, s2 = anterior, s3 = a anterior a s2):**
 
 1. Mesma carga em s1 e s2 e TODAS as séries de trabalho com reps ≥ topo da faixa nas duas → **`up`**: carga da base + 1 degrau, reps = piso da faixa da última série (ex.: `27 kg × 6`).
-2. Existe s3, mesma carga em s1/s2/s3 e a soma de reps caiu duas vezes seguidas (s3 > s2 > s1), e reduzir um degrau não zera a carga → **`down`**: carga − 1 degrau, reps = piso. (Único caso em que a carga desce.)
+2. Existe s3, mesma carga em s1/s2/s3 e a soma de reps caiu duas vezes seguidas (s3 > s2 > s1), e reduzir um degrau não zera a carga → **`down`**: carga − 1 degrau, reps = piso.
 3. Duas sessões seguidas com alguma série abaixo do piso, **ou** mesma carga e a soma de reps caiu de s2 para s1 → **`hold`**: mesma carga, reps = as da última série da s1 limitadas à faixa (repetir o último desempenho, pelo menos o piso). Nunca sugere aumento.
 4. Caso contrário (dentro da faixa, sem bater o topo em todas; ou a carga mudou entre as sessões) → **`reps`**: mesma carga, +1 rep na série mais longe do topo (nunca passa do topo nem fica abaixo do piso).
 
 - **Degrau:** `Treino.STEP_KG = { seg: 2, ter: 2, qui: 2, qua: 5, sex: 5 }` (padrão `DEFAULT_STEP_KG = 2`); nunca mais de um degrau por vez.
+- **Semana leve/deload automática:** ciclo individual por exercício (id), contado desde a data mais antiga encontrada em qualquer série/campo do histórico daquele exercício até a data exibida. `Treino.DELOAD_HEAVY_WEEKS = 4` define quatro semanas pesadas; o ciclo tem cinco semanas e as semanas 4, 9, 14… são leves. Exige as mesmas duas sessões completas da meta normal. Quando a semana é leve, tem prioridade sobre `up`/`down`/`hold`/`reps`: sugere 10% menos que a carga-base da última série de trabalho e o piso da faixa, com `kind: "deload"`; `Treino.DELOAD_REDUCTION = 0.1`. Cargas-base de até 2 kg são mantidas para evitar sugerir uma carga muito pequena; o resultado nunca fica zerado ou negativo. Usa a data exibida e não grava chave nem estado do ciclo.
 - **Usa a data exibida**, não a real: ao ver um treino antigo, só entram sessões anteriores àquela data (igual à "última carga").
 - Tudo por **ids** (`idExercicio_idSerie`): reordenar/editar o treino mantém a meta no exercício certo; exercício trocado (id novo) começa sem meta.
-- **Texto** (`formatGoal`): `Meta hoje: 27 kg × 6` + nota discreta: `subir a carga` / `+1 rep` / `manter a carga` / `reduzir um degrau`. Sem tom de punição. Peso com ponto decimal (como no resto do app).
+- **Texto** (`formatGoal`): `Meta hoje: 27 kg × 6` + nota discreta: `subir a carga` / `+1 rep` / `manter a carga` / `reduzir um degrau` / `semana leve`. Sem tom de punição. Peso com ponto decimal (como no resto do app).
 - Não cria chaves de armazenamento e não muda o formato de `treino:{slug}` nem de `treino:edit:{slug}`.
-- Testes em `test/3-goals.test.js` (regra pura + tela); foram escritos antes do código.
+- Testes em `test/3-goals.test.js` (regra pura + tela); os casos do deload foram escritos antes do código.
 
 ### Gráfico de evolução — como funciona (FEITO)
 
@@ -272,7 +273,7 @@ Pontos, níveis, XP, metas semanais, semana leve (deload) e gráficos são fases
 ### Regras de implementação
 
 - **PWA:** mudou qualquer arquivo listado em `ASSETS` (`sw.js`) → `node tools/atualizar-sw.js`, depois `npm test`. Arquivo novo em `js/`, `css/` ou `icons/` → entra em `ASSETS` e no `index.html` (se for script/CSS).
-- **Testes:** antes de dar uma mudança como pronta, rode `cd test && npm test` (pasta **`test`**, não `tests`; precisa terminar com 0 falharam; hoje são **212** testes). Mudou comportamento → ajuste/crie o teste junto; achou bug → primeiro um teste que falha, depois a correção. Faça os testes cobrirem o que o usuário realmente espera (ex.: "a carga continua no exercício certo depois de reordenar"), não só que o código roda. O jsdom não tem layout nem toque: arraste, rolagem, modo compacto e download/upload de arquivo continuam exigindo teste manual no celular.
+- **Testes:** antes de dar uma mudança como pronta, rode `cd test && npm test` (pasta **`test`**, não `tests`; precisa terminar com 0 falharam; hoje são **218** testes). Mudou comportamento → ajuste/crie o teste junto; achou bug → primeiro um teste que falha, depois a correção. Faça os testes cobrirem o que o usuário realmente espera (ex.: "a carga continua no exercício certo depois de reordenar"), não só que o código roda. O jsdom não tem layout nem toque: arraste, rolagem, modo compacto e download/upload de arquivo continuam exigindo teste manual no celular.
 - Continue em arquivos separados (não volte tudo para um HTML só).
 - Altere o mínimo necessário; não refatore o que já funciona.
 - Interface em português, fácil de usar no celular (dedo grande, poucos toques).

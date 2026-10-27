@@ -10,6 +10,8 @@ window.Treino = window.Treino || {};
 // Degrau de carga por dia (kg). Fácil de ajustar.
 Treino.STEP_KG = { seg: 2, ter: 2, qui: 2, qua: 5, sex: 5 };
 Treino.DEFAULT_STEP_KG = 2;
+Treino.DELOAD_HEAVY_WEEKS = 4;
+Treino.DELOAD_REDUCTION = 0.1;
 
 // "6 a 8" (também aceita "6-8") -> { lo: 6, hi: 8 }; "15" ou texto -> null.
 function parseRange(reps){
@@ -24,6 +26,24 @@ function validWeight(w){ return typeof w === "number" && isFinite(w) && w > 0; }
 function validReps(r){ return r !== undefined && r !== null && /^\d+$/.test(String(r).trim()); }
 function round2(x){ return Math.round(x * 100) / 100; }
 function sum(list){ return list.reduce(function(a, s){ return a + s.reps; }, 0); }
+
+function isDeloadWeek(ex, hist, dateExcl){
+  var first = null;
+  var prefix = ex.id + "_";
+  Object.keys(hist).forEach(function(key){
+    if(key.indexOf(prefix) !== 0 || !Array.isArray(hist[key])) return;
+    hist[key].forEach(function(e){
+      if(!e || typeof e.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(e.date)) return;
+      if(!isFinite(Date.parse(e.date + "T00:00:00Z"))) return;
+      if(first === null || e.date < first) first = e.date;
+    });
+  });
+  if(first === null || typeof dateExcl !== "string") return false;
+  var elapsed = Date.parse(dateExcl + "T00:00:00Z") - Date.parse(first + "T00:00:00Z");
+  if(!isFinite(elapsed) || elapsed < 0) return false;
+  var week = Math.floor(elapsed / (7 * 24 * 60 * 60 * 1000));
+  return week % (Treino.DELOAD_HEAVY_WEEKS + 1) === Treino.DELOAD_HEAVY_WEEKS;
+}
 
 // Sessão = data em que TODAS as séries de trabalho têm carga numérica e reps
 // feitas numéricas. Sessão incompleta é ignorada (melhor nada do que meta ruim).
@@ -75,6 +95,12 @@ Treino.suggestGoal = function(exercicio, hist, dateExcl, stepKg){
   var last = s1.sets[s1.sets.length - 1];   // série de trabalho mais recente = base
   var same12 = sameLoad(s1, s2);
 
+  // A semana leve tem prioridade sobre as regras normais, após o mínimo de sessões.
+  if(isDeloadWeek(exercicio, hist, dateExcl)){
+    var reduced = round2(last.weight * (1 - Treino.DELOAD_REDUCTION));
+    return { weight: reduced > 0 && last.weight > 2 ? reduced : last.weight, reps: last.lo, kind: "deload" };
+  }
+
   // 1) Duas sessões batendo o topo com a mesma carga: sobe UM degrau, volta ao piso.
   if(same12 && hitTop(s1) && hitTop(s2)){
     return { weight: round2(last.weight + step), reps: last.lo, kind: "up" };
@@ -102,6 +128,6 @@ Treino.suggestGoal = function(exercicio, hist, dateExcl, stepKg){
 };
 
 Treino.formatGoal = function(g){
-  var notes = { up: "subir a carga", reps: "+1 rep", hold: "manter a carga", down: "reduzir um degrau" };
+  var notes = { up: "subir a carga", reps: "+1 rep", hold: "manter a carga", down: "reduzir um degrau", deload: "semana leve" };
   return { text: "Meta hoje: " + g.weight + " kg × " + g.reps, note: notes[g.kind] || "" };
 };

@@ -8,6 +8,7 @@ const eq = (a, b, m) => assert.deepStrictEqual(norm(a), norm(b), m);
 
 const HOJE = "2026-06-30";
 const D1 = "2026-06-10", D2 = "2026-06-17", D3 = "2026-06-24"; // D3 = mais recente
+const datePlus = (date, days) => { const d = new Date(date + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); };
 // Exercício: 2 aquecimentos numéricos + 2 séries de trabalho (faixas).
 const ex = (sets) => ({ id: "e1", name: "X", ref: "", sets: sets || [{ id: "a", reps: "15" }, { id: "b", reps: "10" }, { id: "c", reps: "6 a 8" }, { id: "d", reps: "6 a 8" }] });
 // Sessão nas séries de trabalho c e d: [carga, reps] de cada uma.
@@ -147,12 +148,60 @@ test("meta: formatGoal monta o texto discreto", () => {
   eq(T.formatGoal({ weight: 23, reps: 6, kind: "down" }), { text: "Meta hoje: 23 kg × 6", note: "reduzir um degrau" });
 });
 
+test("deload: semanas 0 a 3 mantêm as regras normais", () => {
+  const inicio = "2026-01-01";
+  [0, 1, 2, 3].forEach((semana) => {
+    const h = hist(sess(datePlus(inicio, 1), [25, 8], [25, 8]), sess(datePlus(inicio, 2), [25, 8], [25, 8]));
+    // Um registro de reps em dia mais antigo define o início do ciclo, sem virar sessão completa.
+    h.e1_a = [{ date: inicio, repsDone: "15" }];
+    const dataExibida = datePlus(inicio, semana * 7 + 6);
+    const g = goal(h, { hoje: dataExibida });
+    assert.notEqual(g.kind, "deload", "semana " + semana);
+    assert.equal(g.kind, "up", "semana " + semana + " segue a regra normal");
+  });
+});
+
+test("deload: semanas 4, 9 e 14 reduzem carga e reps com prioridade", () => {
+  const inicio = "2026-01-01";
+  [4, 9, 14].forEach((semana) => {
+    const h = hist(sess(datePlus(inicio, 8), [25, 8], [25, 8]), sess(datePlus(inicio, 15), [25, 8], [25, 8]));
+    h.e1_a = [{ date: inicio, repsDone: "15" }];
+    const e = ex();
+    const antes = JSON.stringify([h, e]);
+    eq(T.suggestGoal(e, h, datePlus(inicio, semana * 7), 2), { weight: 22.5, reps: 6, kind: "deload" }, "semana " + semana);
+    assert.equal(JSON.stringify([h, e]), antes, "cálculo puro na semana " + semana);
+  });
+});
+
+test("deload: exige duas sessões completas e mantém cargas pequenas positivas", () => {
+  const inicio = "2026-01-01";
+  const dataExibida = datePlus(inicio, 28);
+  const incompleto = { e1_a: [{ date: inicio, repsDone: "15" }] };
+  assert.equal(goal(incompleto, { hoje: dataExibida }), null);
+  const h = hist(sess(datePlus(inicio, 8), [2, 8], [2, 8]), sess(datePlus(inicio, 15), [2, 8], [2, 8]));
+  h.e1_a = [{ date: inicio, repsDone: "15" }];
+  eq(goal(h, { hoje: dataExibida }), { weight: 2, reps: 6, kind: "deload" });
+});
+
+test("deload: usa a data exibida e reinicia com o id novo", () => {
+  const inicio = "2026-01-01";
+  const h = hist(sess(datePlus(inicio, 8), [25, 8], [25, 8]), sess(datePlus(inicio, 15), [25, 8], [25, 8]));
+  h.e1_a = [{ date: inicio, repsDone: "15" }];
+  eq(goal(h, { hoje: datePlus(inicio, 28) }), { weight: 22.5, reps: 6, kind: "deload" });
+  assert.equal(T.suggestGoal(Object.assign(ex(), { id: "novo" }), h, datePlus(inicio, 28), 2), null);
+});
+
+test("deload: formatGoal usa nota semana leve", () => {
+  eq(T.formatGoal({ weight: 22.5, reps: 6, kind: "deload" }), { text: "Meta hoje: 22.5 kg × 6", note: "semana leve" });
+});
+
 // ---------- na tela ----------
 
 const dois = (id, w, r) => ({ [id + "_s3"]: [{ date: "2020-01-10", weight: w, repsDone: r }, { date: "2020-01-17", weight: w, repsDone: r }], [id + "_s4"]: [{ date: "2020-01-10", weight: w, repsDone: r }, { date: "2020-01-17", weight: w, repsDone: r }] });
 
 test("meta (tela): aparece no exercício certo, no modo normal, e não aparece no editor", () =>
   withApp({ seed: { "treino:seg": dois("seg_ex0", 25, "8") } }, async (c) => {
+    await c.setDate("2020-01-20");
     const g = c.$(".ex-goal", c.exercise("Desenvolvimento com halteres"));
     assert.ok(g, "linha de meta presente");
     assert.match(g.textContent, /Meta hoje: 27 kg × 6/);
@@ -163,12 +212,27 @@ test("meta (tela): aparece no exercício certo, no modo normal, e não aparece n
 
 test("meta (tela): legs/lower usa +5 kg", () =>
   withApp({ seed: { "treino:qua": dois("qua_ex0", 40, "8") } }, async (c) => {
+    await c.setDate("2020-01-20");
     await c.tab(2);
     assert.match(c.$(".ex-goal", c.exercise("Cadeira extensora")).textContent, /Meta hoje: 45 kg × 6/);
   }));
 
+test("deload (tela): mostra nota semana leve na linha do exercício e não no editor", () =>
+  withApp({ seed: { "treino:seg": {
+    seg_ex0_s3: [{ date: "2020-01-09", repsDone: "15" }, { date: "2020-01-17", weight: 25, repsDone: "8" }, { date: "2020-01-24", weight: 25, repsDone: "8" }],
+    seg_ex0_s4: [{ date: "2020-01-17", weight: 25, repsDone: "8" }, { date: "2020-01-24", weight: 25, repsDone: "8" }]
+  } } }, async (c) => {
+    await c.setDate("2020-02-06");
+    const g = c.$(".ex-goal", c.exercise("Desenvolvimento com halteres"));
+    assert.ok(g);
+    assert.match(g.textContent, /Meta hoje: 22\.5 kg × 6 · semana leve/);
+    await c.openEditor();
+    assert.equal(c.$(".ex-goal"), null);
+  }));
+
 test("meta (tela): acompanha o exercício depois de reordenar por arraste; trocar exercício zera a meta", () =>
   withApp({ seed: { "treino:seg": dois("seg_ex0", 25, "8") } }, async (c) => {
+    await c.setDate("2020-01-20");
     await c.openEditor();
     await c.drag("ex", 0, 1);
     await c.saveEditor();
