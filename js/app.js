@@ -104,8 +104,8 @@
     var origDay = currentOriginalDay();
     var slug = origDay.slug;
     var html = "";
-    html += '<div class="hdr"><div class="hdr-text"><h1>Treino da semana</h1><p id="dayTitle">' + escapeHtml(evo ? "Evolução das cargas" : origDay.full) + "</p></div>" +
-      '<button class="themebtn" id="themeToggle" type="button"></button></div>';
+    html += '<div class="hdr"><div class="hdr-text"><h1>Treino da semana</h1><p id="dayTitle">' + escapeHtml(evo ? "Evolução das cargas" : origDay.full) + "</p>" +
+      (evo || state.editMode ? '' : '<div class="xp-head" id="xpHead"></div>') + '</div><button class="themebtn" id="themeToggle" type="button"></button></div>';
     html += '<div class="tabs">';
     DAYS.forEach(function(d, i){
       html += '<button class="tab' + (!evo && i === state.day ? " active" : "") + (state.editMode && isDirty(d.slug) ? " dirty" : "") + '" data-day="' + i + '">' + d.label + "</button>";
@@ -140,6 +140,7 @@
 
     if(evo){
       Treino.mountEvolucao(document.getElementById("body"));
+      mountXpEvolution();
       return;
     }
 
@@ -236,6 +237,7 @@
     // O título do cabeçalho mostra o nome do dia EFETIVO (editado, se houver).
     var titleEl = document.getElementById("dayTitle");
     if(titleEl) titleEl.textContent = eff.full;
+    paintXpHead();
     var hist = state.history[slug] || {};
     var body = document.getElementById("body");
     if(!body) return;
@@ -355,6 +357,7 @@
           var savedSet = (field === "weight") ? (patch.weight > 0) : !!patch.repsDone;
           var saveDate = entryDate;
           Treino.storageSet("treino:" + slug2, JSON.stringify(hist2)).then(function(){
+            recalcXpDate(saveDate);
             if(markedRest) render();
             showSavedToast("Salvo");
             try { if(savedSet && saveDate === todayStr() && Treino.timerOnSetSaved) Treino.timerOnSetSaved(key + "@" + saveDate); } catch(e){}
@@ -382,6 +385,27 @@
     if(copyLastBtn) copyLastBtn.addEventListener("click", copyLastLoads);
 
     bindBackupEvents();
+  }
+
+  function paintXpHead(){
+    var el=document.getElementById("xpHead"); if(!el) return;
+    Treino.xpLoadBook().then(function(book){ if(book===null||!el.isConnected)return; var total=Object.keys(book).reduce(function(a,k){return a+book[k];},0), p=Treino.progressoNivel(total), before=0; for(var n=2;n<=p.level;n++) before+=Treino.custoNivel(n); var next=before+p.next;
+      el.innerHTML='<span>Nível '+p.level+' · '+total+' / '+next+' XP</span><span class="xp-track"><i style="width:'+Math.max(0,Math.min(1,p.fraction))*100+'%"></i></span>'; });
+  }
+
+  function mountXpEvolution(){
+    var root=document.getElementById("body"); if(!root)return;
+    Treino.xpLoadBook().then(function(book){if(book===null||!root.isConnected)return;var total=Object.keys(book).reduce(function(a,k){return a+book[k];},0),p=Treino.progressoNivel(total), dates=Object.keys(book).sort().slice(-7).reverse();
+      var block=document.createElement("section");block.className="xp-evolution";block.innerHTML='<h2>Nível e XP</h2><strong>Nível '+p.level+'</strong><div class="xp-track"><i style="width:'+Math.max(0,Math.min(1,p.fraction))*100+'%"></i></div><p>'+total+' XP no total · '+p.current+' / '+p.next+' XP neste nível</p><ul>'+dates.map(function(d){return '<li>'+d+' · '+book[d]+' XP</li>';}).join('')+'</ul>';
+      root.insertBefore(block,root.firstChild);
+    });
+  }
+
+  function recalcXpDate(date){
+    Treino.xpLoadBook().then(function(book){if(book===null)return; readAllFresh(function(cur){if(cur.failed.length)return; var ds=DAYS.map(function(d){var edit=cur.edits[d.slug], eff=edit||Treino.effectiveDay(d,null);eff.slug=d.slug;return eff;}), hs=DAYS.map(function(d){return cur.hists[d.slug]||{};}), trained={};
+      hs.forEach(function(h){Object.keys(h).forEach(function(k){(h[k]||[]).forEach(function(e){if(/^\d+(?:[.,]\d+)?$/.test(String(e.repsDone||"").trim()))trained[e.date]=1;});});});
+      var all=Object.keys(trained).sort(), next=Treino.xpRecalcDate(date,book,hs,ds,cur.descanso,all);if(!Object.keys(book).length&&!Object.keys(next).length)return;Treino.storageSet("treino:xp",JSON.stringify(next)).then(paintXpHead,function(){});
+    });});
   }
 
   // Preenche com a carga da última sessão as séries que ainda estão sem carga
@@ -480,7 +504,7 @@
           ".\nO backup não foi copiado para não sair incompleto. Recarregue a página e tente de novo.");
         return;
       }
-      var text = JSON.stringify(Treino.buildBackup(slugList(), cur.edits, cur.hists, cur.descanso));
+      var text = JSON.stringify(Treino.buildBackup(slugList(), cur.edits, cur.hists, cur.descanso, cur.xp));
       var box = document.getElementById("copyBox");
       if(box) box.hidden = true;
       writeClipboard(text).then(function(){
@@ -498,11 +522,11 @@
   // da tela). Dias que não puderam ser lidos vão em "failed" e ficam fora de
   // edits/hists, para nunca exportar um dia como se estivesse vazio.
   function readAllFresh(cb){
-    var edits = {}, hists = {}, descanso = [], failed = [];
-    var pending = DAYS.length + 1;
+    var edits = {}, hists = {}, descanso = [], failed = [], xp = {};
+    var pending = DAYS.length + 2;
     function doneOne(){
       pending--;
-      if(pending === 0) cb({ edits: edits, hists: hists, descanso: descanso, failed: failed });
+      if(pending === 0) cb({ edits: edits, hists: hists, descanso: descanso, xp: xp, failed: failed });
     }
     DAYS.forEach(function(d){
       Treino.loadDayEdit(d.slug, function(editData, editFailed){
@@ -530,6 +554,7 @@
       }
       doneOne();
     }, function(){ failed.push({ label: "descanso" }); doneOne(); });
+    Treino.xpLoadBook().then(function(book){ if(book===null) failed.push({label:"XP"}); else xp=book; doneOne(); });
   }
 
   function stamp(){
@@ -560,7 +585,7 @@
           ".\nO backup não foi gerado para não sair incompleto. Recarregue a página e tente de novo.");
         return;
       }
-      var backup = Treino.buildBackup(slugList(), cur.edits, cur.hists, cur.descanso);
+      var backup = Treino.buildBackup(slugList(), cur.edits, cur.hists, cur.descanso, cur.xp);
       downloadJson("treino-backup-" + stamp() + ".json", JSON.stringify(backup, null, 2));
       markBackupDone();
       showSavedToast("Backup exportado");
@@ -623,6 +648,7 @@
       "Registros de carga: " + res.stats.records +
       (res.stats.dropped ? "\nItens inválidos ignorados: " + res.stats.dropped : "") +
       "\n\nIsso SUBSTITUI o treino e o histórico desses dias neste aparelho. " +
+      (res.xpMode === "replace" ? "O livro de XP será substituído pelo do arquivo. " : "Como o arquivo é v1/v2, o XP local é mantido e comparado ao histórico importado. ") +
       "Antes, um backup do estado atual será baixado automaticamente.";
     if(!confirm(msg)) return;
 
@@ -635,13 +661,30 @@
       // Backup automático do que deu para ler (só se houver algo a guardar).
       var hasData = Object.keys(cur.edits).some(function(k){
         return cur.edits[k] || Object.keys(cur.hists[k] || {}).length;
-      }) || cur.descanso.length > 0;
+      }) || cur.descanso.length > 0 || Object.keys(cur.xp || {}).length > 0;
       if(hasData){
-        var prev = Treino.buildBackup(slugList(), cur.edits, cur.hists, cur.descanso);
+        var prev = Treino.buildBackup(slugList(), cur.edits, cur.hists, cur.descanso, cur.xp);
         downloadJson("treino-backup-antes-da-importacao-" + stamp() + ".json", JSON.stringify(prev, null, 2));
       }
 
       var writes = [];
+      var xpWrite = null;
+      if(res.xpMode === "replace"){
+        if(cur.failed.every(function(x){return x.label!=="XP";})) xpWrite = res.xp || {};
+      } else {
+        // v1/v2 não continham livro: conserva o local e aumenta apenas os
+        // pontos das datas importadas quando o histórico importado os justifica.
+        var localBook = cur.xp || {}, mergedHists = {}, mergedDays = [];
+        DAYS.forEach(function(d){
+          var imported=res.days[d.slug], hist=imported?imported.history:(cur.hists[d.slug]||{}), edit=imported?imported.edit:cur.edits[d.slug];
+          mergedHists[d.slug]=hist; var eff=edit||Treino.effectiveDay(d,null); eff.slug=d.slug; mergedDays.push(eff);
+        });
+        var dates={};Object.keys(res.days).forEach(function(slug){Object.keys(mergedHists[slug]||{}).forEach(function(k){(mergedHists[slug][k]||[]).forEach(function(e){if(e.date)dates[e.date]=1;});});});
+        var book=Object.assign({},localBook), hs=mergedDays.map(function(d){return mergedHists[d.slug]||{};}), trained={};
+        hs.forEach(function(h){Object.keys(h).forEach(function(k){(h[k]||[]).forEach(function(e){if(/^\d+(?:[.,]\d+)?$/.test(String(e.repsDone||"").trim()))trained[e.date]=1;});});});
+        Object.keys(dates).forEach(function(date){var recalculated=Treino.xpRecalcDate(date,book,hs,mergedDays,cur.descanso,Object.keys(trained).sort());var max=Math.max(localBook[date]||0,recalculated[date]||0);if(max)recalculated[date]=max;else delete recalculated[date];book=recalculated;});
+        if(cur.failed.every(function(x){return x.label!=="XP";})) xpWrite=book;
+      }
       DAYS.forEach(function(d){
         var day = res.days[d.slug];
         if(!day) return;
@@ -649,6 +692,7 @@
         writes.push(day.edit ? Treino.saveDayEdit(d.slug, day.edit) : Treino.clearDayEdit(d.slug));
       });
       writes.push(Treino.storageSet("treino:descanso", JSON.stringify(res.descanso || [])));
+      if(xpWrite !== null) writes.push(Treino.storageSet("treino:xp", JSON.stringify(xpWrite)));
       Promise.all(writes).then(function(){
         resetCaches();
         render();
@@ -754,6 +798,8 @@
     });
     state.entering = false;
     state.editMode = true;
+    var xpHead = document.getElementById("xpHead");
+    if(xpHead) xpHead.remove();
     var btn = document.getElementById("editToggle");
     if(btn) btn.innerHTML = editBtnHtml(true);
     var tabEvo = document.getElementById("tabEvo");
@@ -1055,6 +1101,15 @@
     });
   }
 
+  function migrateXpOnce(){
+    Treino.storageGet("treino:xp").then(function(existing){
+      if(existing) return;
+      readAllFresh(function(cur){ if(cur.failed.length)return; var hasHistory=Object.keys(cur.hists).some(function(slug){return Object.keys(cur.hists[slug]||{}).some(function(k){return (cur.hists[slug][k]||[]).length>0;});}); if(!hasHistory)return; var ds=DAYS.map(function(d){var x=cur.edits[d.slug]||Treino.effectiveDay(d,null);x.slug=d.slug;return x;});
+        var book=Treino.xpMigrate(null,cur.hists,ds,cur.descanso); Promise.resolve(book).then(function(b){Treino.storageSet("treino:xp",JSON.stringify(b)).then(paintXpHead,function(){});});
+      });
+    }).catch(function(){});
+  }
   render();
+  migrateXpOnce();
   Treino.loadTheme();
 })();

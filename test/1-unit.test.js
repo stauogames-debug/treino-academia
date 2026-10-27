@@ -119,7 +119,7 @@ test("unit: validateBackup aceita um backup válido e copia campo a campo", () =
 
 test("unit: validateBackup recusa arquivo de outro app, versão errada e sem dias", () => {
   assert.equal(T.validateBackup({ app: "outro", version: 1, days: {} }, SLUGS).ok, false);
-  assert.equal(T.validateBackup({ app: "treino-da-semana", version: 3, days: { seg: {} } }, SLUGS).ok, false);
+  assert.equal(T.validateBackup({ app: "treino-da-semana", version: 4, days: { seg: {} } }, SLUGS).ok, false);
   assert.equal(T.validateBackup({ app: "treino-da-semana", version: 1 }, SLUGS).ok, false);
   assert.equal(T.validateBackup(backup({}), SLUGS).ok, false);
   assert.equal(T.validateBackup(backup({ xyz: { edit: null, history: {} } }), SLUGS).ok, false);
@@ -173,6 +173,6 @@ test("unit: buildBackup só inclui dias que têm dados", () => {
   const b = T.buildBackup(SLUGS, { seg: null }, { seg: { a_s0: [{ date: "2026-01-01", weight: 1 }] } });
   eq(Object.keys(b.days), ["seg"]);
   assert.equal(b.app, "treino-da-semana");
-  assert.equal(b.version, 2);
+  assert.equal(b.version, 3);
   assert.equal(b.days.seg.edit, null);
 });

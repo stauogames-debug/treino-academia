@@ -22,7 +22,7 @@ window.Treino = window.Treino || {};
 // storage ou para o HTML sem passar por aqui).
 
 Treino.BACKUP_APP = "treino-da-semana";
-Treino.BACKUP_VERSION = 2;
+Treino.BACKUP_VERSION = 3;
 Treino.BACKUP_MAX_BYTES = 5 * 1024 * 1024;
 
 // Data do último backup MANUAL (exportar ou copiar). É preferência do
@@ -50,7 +50,7 @@ Treino.describeLastBackup = function(iso, now){
   return { text: "Último backup: há " + days + " dias", stale: days >= Treino.BACKUP_STALE_DAYS };
 };
 
-Treino.buildBackup = function(slugs, editBySlug, historyBySlug, descanso){
+Treino.buildBackup = function(slugs, editBySlug, historyBySlug, descanso, xp){
   var days = {};
   slugs.forEach(function(slug){
     if(!has(editBySlug, slug) && !has(historyBySlug, slug)) return;
@@ -64,6 +64,7 @@ Treino.buildBackup = function(slugs, editBySlug, historyBySlug, descanso){
     version: Treino.BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
     descanso: Treino.normalizeDescanso ? Treino.normalizeDescanso(descanso) : [],
+    xp: xp && typeof xp === "object" ? xp : {},
     days: days
   };
 };
@@ -185,7 +186,11 @@ Treino.validateBackup = function(obj, slugs){
   }
   var days = {};
   var stats = { days: 0, edits: 0, records: 0, dropped: 0 };
-  var descanso = [];
+  var descanso = [], xp = {}, xpMode = obj.version >= 3 ? "replace" : "legacy-merge";
+  if(obj.version >= 3){
+    if(obj.xp !== undefined && !isPlainObject(obj.xp)) stats.dropped++;
+    else Object.keys(obj.xp || {}).forEach(function(date){var v=obj.xp[date];if(!validDate(date)||!Number.isInteger(v)||v<0||v>1000000){stats.dropped++;return;}xp[date]=v;});
+  }
   if(obj.version >= 2){
     if(obj.descanso === undefined){
       // Campo ausente em um v2 é equivalente a nenhuma data de descanso.
@@ -221,6 +226,6 @@ Treino.validateBackup = function(obj, slugs){
   if(stats.days === 0){
     return { ok: false, error: "O backup não contém nenhum dia conhecido (seg, ter, qua, qui, sex)." };
   }
-  return { ok: true, days: days, descanso: descanso, exportedAt: typeof obj.exportedAt === "string" ? obj.exportedAt : "", stats: stats };
+  return { ok: true, days: days, descanso: descanso, xp: xp, xpMode: xpMode, exportedAt: typeof obj.exportedAt === "string" ? obj.exportedAt : "", stats: stats };
 };
 })();

@@ -83,13 +83,13 @@ test("descanso: cancelar confirmação não grava, mantém marcação, restaura 
     assert.equal(c.T.timerState().mode, "idle");
   }));
 
-test("descanso: exportar e copiar incluem datas de descanso no backup v2", async () => {
+test("descanso: exportar e copiar incluem datas de descanso no backup v3", async () => {
   await withApp(async (c) => {
     c.click(c.$("#markRest")); await c.idle();
     c.click(c.$("#exportBackup"));
     await waitFor(() => c.log.downloads.length, "backup exportado");
     const out = JSON.parse(c.log.downloads[0].text);
-    assert.equal(out.version, 2);
+    assert.equal(out.version, 3);
     assert.deepEqual(out.descanso, c.store.json("treino:descanso"));
     let copiedText = "";
     Object.defineProperty(c.w.navigator, "clipboard", { value: { writeText: async (text) => { copiedText = text; } }, configurable: true });

@@ -87,13 +87,14 @@ O app saiu de um único arquivo (`index.html.html` com HTML + CSS + JS juntos) p
 | `js/descanso.js`      | Funções puras `isDescanso`, `addDescanso`, `removeDescanso` e normalização de datas ISO, sem mutar a lista recebida |
 | `js/goals.js`         | Meta por exercício: `suggestGoal(exercicioEfetivo, historicoDoDia, dataExibida, stepKg)` → `{weight, reps, kind}` ou `null` (função pura), `formatGoal(g)` → `{text, note}`, constantes `STEP_KG` (por dia), `DEFAULT_STEP_KG`, `DELOAD_HEAVY_WEEKS` e `DELOAD_REDUCTION` |
 | `js/evolucao.js`      | Gráfico de evolução (só leitura). Funções puras: `evolucaoDados(exercicio, hist, hojeISO)` → `{sets, datas}` e `svgEvolucao(dados)` → HTML do SVG (ou `""`). Tela: `mountEvolucao(root)` lê todos os dias, nunca grava. Constantes `EVO_MAX_DATAS` (12) e `EVO_CLASSES` (5) |
-| `js/backup.js`        | `buildBackup(slugs, edits, hists, descanso)` e `validateBackup(obj, slugs)` (formato v2; validação/limpeza do arquivo importado; aceita v1 antigo; sem acesso a storage nem DOM). Constantes `BACKUP_APP`, `BACKUP_VERSION = 2`, `BACKUP_MAX_BYTES`; lembrete do último backup: `describeLastBackup(iso, now)`, `LASTBACKUP_KEY = "treino:lastBackup"`, `BACKUP_STALE_DAYS = 7` |
+| `js/xp.js`            | Livro de XP por data, cálculo de séries/exercícios/metas/bônus semanais, migração única, níveis e progresso. |
+| `js/backup.js`        | `buildBackup(slugs, edits, hists, descanso, xp)` e `validateBackup(obj, slugs)` (formato v3; aceita v1/v2 antigos; sem acesso a storage nem DOM). Constantes `BACKUP_APP`, `BACKUP_VERSION = 3`, `BACKUP_MAX_BYTES`; lembrete do último backup: `describeLastBackup(iso, now)`, `LASTBACKUP_KEY = "treino:lastBackup"`, `BACKUP_STALE_DAYS = 7` |
 | `js/edit.js`          | Persistência da edição de treino por dia (`treino:edit:{slug}`), migração de edições antigas sem id (`loadDayEdit`, `cb(editData, failed)`), merge com o padrão (`effectiveDay`), clone editável (`cloneForEdit`), reset (`clearDayEdit`, via `storageDelete`) |
 | `js/icons.js`         | `Treino.icon(nome)` → `<svg>` decorativo (`aria-hidden`) que herda `currentColor`. Nomes: `edit`, `x`, `trash`, `repeat`, `plus`, `download`, `upload`, `sun`, `moon`, `copy`, `clipboard`, `play`, `pause`, `rotate-ccw`, `clock`, `volume`, `volume-off`, `grip`. Nome desconhecido → `""` |
 | `js/theme.js`         | Tema: `applyTheme`, `toggleTheme`, `loadTheme`, `refreshThemeButton`, `THEME_KEY = "treino:theme"`, `THEME_COLOR` (meta `theme-color`). Aplica o escuro ao carregar; `app.js` chama `loadTheme()` no fim |
 | `js/timer.js`         | Temporizador de descanso. Funções puras: `clampSeconds`, `formatMMSS`, `remainingMs`, `normalizeTimerPrefs`; constantes `TIMER_KEY = "treino:timer"`, `TIMER_MIN_S` (5), `TIMER_MAX_S` (900), `TIMER_DEFAULT_S` (90), `TIMER_PRESETS`, `TIMER_STEP_S`. Cria a barra no `document.body`; ganchos usados pelo `app.js`: `Treino.timerOnSetSaved(key)` e `Treino.timerSetEditing(bool)`; para testes: `Treino.timerState()` e `Treino.timerTick()`. Não grava treino nem histórico |
 | `js/sortable.js`      | Reordenar por arraste: `moveItem(arr, from, to)` e `dropIndex(centers, y)` (funções puras) e `startDrag(e, opts)` (Pointer Events, auto-rolagem, modo compacto, `onFinish(from, to, committed)`). Não altera dados: quem chama (`app.js`) move no rascunho e re-renderiza |
-| `test/`               | Testes automatizados (Node + jsdom, sem navegador, storage falso em memória — não mexem nos dados reais). A pasta se chama **`test`** (não `tests` nem `testes`). Arquivos: `harness.js` (abre o app e helpers), `1-unit.test.js` (funções puras), `2-app.test.js` (fluxos com a tela), `3-goals.test.js` (meta), `4-visual.test.js` (tema, contraste, ícones), `5-backup-extra.test.js` (lembrete + Copiar/Colar), `6-copiar-ultima.test.js` (copiar cargas), `7-timer.test.js` (temporizador), `8-pwa.test.js` (PWA), `9-evolucao.test.js` (gráfico: regra pura + tela), `10-descanso.test.js` (modo descanso e backup v2), `rodar.js` (runner), `LEIA-ME.md`. Rodar: `cd test && npm install && npm test` |
+| `test/`               | Testes automatizados (Node + jsdom, sem navegador, storage falso em memória — não mexem nos dados reais). Inclui `11-xp.test.js` para XP/níveis e fluxo de tela/backup. Rodar: `cd test && npm install && npm test` |
 | `manifest.webmanifest`| Nome, `display: standalone`, `start_url`/`scope` relativos (`./`), cores (`#0B1219`) e ícones (`any` 192/512 e `maskable` 512) |
 | `sw.js`               | Service worker: lista `ASSETS` (todos os arquivos do app, em caminhos **relativos**) e `VERSION` **gerada** por `tools/atualizar-sw.js`. Cache primeiro; instala com `cache: "reload"`; ativa apagando só caches `treino-*` antigos; ignora POST e outros sites |
 | `js/pwa.js`           | Registra `sw.js` só em HTTPS ou localhost, depois do `load`; qualquer falha é ignorada. Carregado **por último** |
@@ -115,8 +116,9 @@ Scripts carregam nesta ordem, sem módulos ES (para abrir como arquivo local). *
 10. `js/theme.js`
 11. `js/timer.js`
 12. `js/evolucao.js`
-13. `js/app.js`
-14. `js/pwa.js`
+13. `js/xp.js`
+14. `js/app.js`
+15. `js/pwa.js`
 
 Namespace global: `window.Treino`.
 

@@ -6,7 +6,7 @@
 // Rode-o sempre que mudar QUALQUER arquivo da lista ASSETS; sem isso o celular
 // continuaria com os arquivos antigos. (tests/8-pwa.test.js falha se esquecer.)
 
-const VERSION = "treino-07627bef169d"; // @versao-automatica
+const VERSION = "treino-ad3eff160955"; // @versao-automatica
 const ASSETS = [
   "./",
   "index.html",
@@ -18,6 +18,7 @@ const ASSETS = [
   "js/descanso.js",
   "js/goals.js",
   "js/evolucao.js",
+  "js/xp.js",
   "js/edit.js",
   "js/backup.js",
   "js/sortable.js",
